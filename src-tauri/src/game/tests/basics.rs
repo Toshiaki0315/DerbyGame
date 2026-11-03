@@ -97,6 +97,28 @@ fn file_save_and_load() {
 }
 
 #[test]
+fn saving_where_it_cannot_be_written_says_why() {
+    let dir = std::env::temp_dir().join(format!("derby_unwritable_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("a_file");
+    std::fs::write(&file, "").unwrap();
+    let g = Game::new();
+    let no_folder = g
+        .save_to(&file.join("nested").join("save.json"))
+        .unwrap_err();
+    assert!(
+        no_folder.contains("セーブ先フォルダを作成できません"),
+        "{no_folder}"
+    );
+    let no_file = g.save_to(&dir).unwrap_err();
+    assert!(
+        no_file.contains("セーブファイルを書き込めません"),
+        "{no_file}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn loading_missing_file_fails() {
     let path = std::env::temp_dir().join("derby_definitely_missing.json");
     assert!(Game::load_from(&path).is_err());

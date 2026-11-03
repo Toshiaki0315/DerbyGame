@@ -3,7 +3,7 @@
 import { inbreedText } from "../Bloodline";
 import { DEBUT_AGE, RETIRE_AGE, SEX_LABEL, statLabel } from "../labels";
 import { NAME_RULE, isValidHorseName } from "../naming";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 import { HorseIcon } from "../widgets";
 
 export default function BreedingTab({ app }: { app: AppView }) {

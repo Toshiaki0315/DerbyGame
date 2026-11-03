@@ -2,6 +2,54 @@
 
 use super::*;
 
+/// What the screen can call.
+pub fn handler<R: tauri::Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static
+{
+    tauri::generate_handler![
+        get_game_state,
+        reset_game,
+        train_horse,
+        save_game,
+        load_game,
+        breed_horses,
+        retire_horse,
+        set_gear,
+        rest_horse,
+        set_auto_training,
+        set_auto_entry,
+        set_all_auto,
+        set_trainer,
+        sell_horse,
+        pasture_horse,
+        set_jockey,
+        recall_horse,
+        release_stud,
+        get_stud_market,
+        buy_stud,
+        set_order,
+        go_abroad,
+        upgrade_farm,
+        get_advice,
+        accept_advice,
+        get_auction,
+        bid_at_auction,
+        calendar::get_calendar,
+        course::get_courses,
+        get_course_fits,
+        get_race_card,
+        quote_bet,
+        place_bets,
+        watch_race,
+        quote_tickets,
+        expand_tickets,
+        set_entries,
+        next_week,
+        bloodline::get_bloodline,
+        breeding_outlook,
+        track::get_track_effects
+    ]
+}
+
 #[tauri::command]
 pub fn get_game_state(store: tauri::State<GameStore>) -> GameState {
     store.0.lock().unwrap().state()
@@ -135,20 +183,23 @@ pub fn train_horse(
     Ok(g.state())
 }
 
-fn save_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+fn save_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<std::path::PathBuf, String> {
     use tauri::Manager;
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(dir.join("save.json"))
 }
 
 #[tauri::command]
-pub fn save_game(app: tauri::AppHandle, store: tauri::State<GameStore>) -> Result<(), String> {
+pub fn save_game<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    store: tauri::State<GameStore>,
+) -> Result<(), String> {
     store.0.lock().unwrap().save_to(&save_path(&app)?)
 }
 
 #[tauri::command]
-pub fn load_game(
-    app: tauri::AppHandle,
+pub fn load_game<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     store: tauri::State<GameStore>,
 ) -> Result<GameState, String> {
     let loaded = Game::load_from(&save_path(&app)?)?;

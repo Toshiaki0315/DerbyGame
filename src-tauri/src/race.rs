@@ -716,7 +716,7 @@ mod tests {
             0,
         );
         assert_eq!((early, late), (KAKARI_EARLY, KAKARI_LATE));
-        assert!(KAKARI_SHARE / KAKARI_EARLY + (1.0 - KAKARI_SHARE) / KAKARI_LATE > 1.0);
+        const { assert!(KAKARI_SHARE / KAKARI_EARLY + (1.0 - KAKARI_SHARE) / KAKARI_LATE > 1.0) };
     }
 
     #[test]

@@ -608,111 +608,6 @@ pub fn outlook(sire: &BloodHorse, dam: &BloodHorse, db: &HashMap<u32, BloodHorse
     }
 }
 
-#[cfg(test)]
-mod theory_tests {
-    use super::*;
-
-    fn horse(id: u32, gender: Sex, line: &str) -> BloodHorse {
-        let base = base_database(1);
-        let mut h = base.iter().find(|h| h.gender == gender).unwrap().clone();
-        h.id = id;
-        h.sire_id = None;
-        h.dam_id = None;
-        h.lineage = line.to_string();
-        h
-    }
-
-    fn named(sire: &BloodHorse, dam: &BloodHorse, db: &HashMap<u32, BloodHorse>) -> Vec<String> {
-        theories(sire, dam, db)
-            .into_iter()
-            .map(|t| t.name)
-            .collect()
-    }
-
-    #[test]
-    fn unrelated_parents_freshen_the_blood() {
-        let (s, d) = (
-            horse(90_001, Sex::Male, "X"),
-            horse(90_002, Sex::Female, "Y"),
-        );
-        assert!(named(&s, &d, &HashMap::new())
-            .iter()
-            .any(|n| n == "血の活性化"));
-    }
-
-    #[test]
-    fn a_moderate_inbreeding_is_a_theory_and_a_close_one_is_not() {
-        assert!(moderate_inbreeding(0.03));
-        assert!(moderate_inbreeding(0.13));
-        assert!(!moderate_inbreeding(0.01));
-        assert!(!moderate_inbreeding(0.25));
-    }
-
-    #[test]
-    fn parents_that_make_up_for_each_other_are_a_theory() {
-        let (mut s, mut d) = (
-            horse(90_001, Sex::Male, "X"),
-            horse(90_002, Sex::Female, "Y"),
-        );
-        s.stats.speed = 90.0;
-        s.stats.stamina = 50.0;
-        s.stats.power = 50.0;
-        d.stats.speed = 50.0;
-        d.stats.stamina = 90.0;
-        d.stats.power = 50.0;
-        assert!(named(&s, &d, &HashMap::new())
-            .iter()
-            .any(|n| n == "能力の補完"));
-        d.stats.speed = 90.0;
-        d.stats.stamina = 50.0;
-        assert!(!named(&s, &d, &HashMap::new())
-            .iter()
-            .any(|n| n == "能力の補完"));
-    }
-
-    #[test]
-    fn a_shared_distance_and_running_style_are_theories() {
-        let (mut s, mut d) = (
-            horse(90_001, Sex::Male, "X"),
-            horse(90_002, Sex::Female, "Y"),
-        );
-        s.aptitude_min = 1600;
-        s.aptitude_max = 2400;
-        d.aptitude_min = 2000;
-        d.aptitude_max = 3000;
-        s.running_style = "差し".to_string();
-        d.running_style = "差し".to_string();
-        let t = named(&s, &d, &HashMap::new());
-        assert!(t.iter().any(|n| n == "距離の一致"));
-        assert!(t.iter().any(|n| n == "脚質の一致"));
-        d.aptitude_min = 2600;
-        d.running_style = "逃げ".to_string();
-        let t = named(&s, &d, &HashMap::new());
-        assert!(!t.iter().any(|n| n == "距離の一致"));
-        assert!(!t.iter().any(|n| n == "脚質の一致"));
-    }
-
-    #[test]
-    fn the_rating_rises_with_the_points() {
-        assert_eq!(rating_for(0), "C");
-        assert_eq!(rating_for(1), "B");
-        assert_eq!(rating_for(3), "A");
-        assert_eq!(rating_for(5), "S");
-    }
-
-    #[test]
-    fn the_outlook_lists_the_theories_and_the_rating() {
-        let (s, d) = (
-            horse(90_001, Sex::Male, "X"),
-            horse(90_002, Sex::Female, "Y"),
-        );
-        let o = outlook(&s, &d, &HashMap::new());
-        let points: u32 = o.theories.iter().map(|t| t.points).sum();
-        assert_eq!(o.rating, rating_for(points));
-        assert!(!o.theories.is_empty());
-    }
-}
-
 /// The generated database for a seed, built once and shared (it takes a moment to make).
 pub fn base_database(seed: u64) -> std::sync::Arc<Vec<BloodHorse>> {
     use std::sync::{Arc, Mutex, OnceLock};
@@ -1048,6 +943,111 @@ pub fn generate(seed: u64) -> Vec<BloodHorse> {
 #[tauri::command]
 pub fn get_bloodline(store: tauri::State<GameStore>) -> Vec<BloodHorse> {
     store.0.lock().unwrap().bloodline_all()
+}
+
+#[cfg(test)]
+mod theory_tests {
+    use super::*;
+
+    fn horse(id: u32, gender: Sex, line: &str) -> BloodHorse {
+        let base = base_database(1);
+        let mut h = base.iter().find(|h| h.gender == gender).unwrap().clone();
+        h.id = id;
+        h.sire_id = None;
+        h.dam_id = None;
+        h.lineage = line.to_string();
+        h
+    }
+
+    fn named(sire: &BloodHorse, dam: &BloodHorse, db: &HashMap<u32, BloodHorse>) -> Vec<String> {
+        theories(sire, dam, db)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
+
+    #[test]
+    fn unrelated_parents_freshen_the_blood() {
+        let (s, d) = (
+            horse(90_001, Sex::Male, "X"),
+            horse(90_002, Sex::Female, "Y"),
+        );
+        assert!(named(&s, &d, &HashMap::new())
+            .iter()
+            .any(|n| n == "血の活性化"));
+    }
+
+    #[test]
+    fn a_moderate_inbreeding_is_a_theory_and_a_close_one_is_not() {
+        assert!(moderate_inbreeding(0.03));
+        assert!(moderate_inbreeding(0.13));
+        assert!(!moderate_inbreeding(0.01));
+        assert!(!moderate_inbreeding(0.25));
+    }
+
+    #[test]
+    fn parents_that_make_up_for_each_other_are_a_theory() {
+        let (mut s, mut d) = (
+            horse(90_001, Sex::Male, "X"),
+            horse(90_002, Sex::Female, "Y"),
+        );
+        s.stats.speed = 90.0;
+        s.stats.stamina = 50.0;
+        s.stats.power = 50.0;
+        d.stats.speed = 50.0;
+        d.stats.stamina = 90.0;
+        d.stats.power = 50.0;
+        assert!(named(&s, &d, &HashMap::new())
+            .iter()
+            .any(|n| n == "能力の補完"));
+        d.stats.speed = 90.0;
+        d.stats.stamina = 50.0;
+        assert!(!named(&s, &d, &HashMap::new())
+            .iter()
+            .any(|n| n == "能力の補完"));
+    }
+
+    #[test]
+    fn a_shared_distance_and_running_style_are_theories() {
+        let (mut s, mut d) = (
+            horse(90_001, Sex::Male, "X"),
+            horse(90_002, Sex::Female, "Y"),
+        );
+        s.aptitude_min = 1600;
+        s.aptitude_max = 2400;
+        d.aptitude_min = 2000;
+        d.aptitude_max = 3000;
+        s.running_style = "差し".to_string();
+        d.running_style = "差し".to_string();
+        let t = named(&s, &d, &HashMap::new());
+        assert!(t.iter().any(|n| n == "距離の一致"));
+        assert!(t.iter().any(|n| n == "脚質の一致"));
+        d.aptitude_min = 2600;
+        d.running_style = "逃げ".to_string();
+        let t = named(&s, &d, &HashMap::new());
+        assert!(!t.iter().any(|n| n == "距離の一致"));
+        assert!(!t.iter().any(|n| n == "脚質の一致"));
+    }
+
+    #[test]
+    fn the_rating_rises_with_the_points() {
+        assert_eq!(rating_for(0), "C");
+        assert_eq!(rating_for(1), "B");
+        assert_eq!(rating_for(3), "A");
+        assert_eq!(rating_for(5), "S");
+    }
+
+    #[test]
+    fn the_outlook_lists_the_theories_and_the_rating() {
+        let (s, d) = (
+            horse(90_001, Sex::Male, "X"),
+            horse(90_002, Sex::Female, "Y"),
+        );
+        let o = outlook(&s, &d, &HashMap::new());
+        let points: u32 = o.theories.iter().map(|t| t.points).sum();
+        assert_eq!(o.rating, rating_for(points));
+        assert!(!o.theories.is_empty());
+    }
 }
 
 #[cfg(test)]

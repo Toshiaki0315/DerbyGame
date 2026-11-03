@@ -459,7 +459,7 @@ fn by_default_the_strongest_eligible_horses_are_entered() {
         .iter()
         .map(|h| (h.speed + h.stamina, h.name.clone()))
         .collect();
-    ranked.sort_by(|a, b| b.0.cmp(&a.0));
+    ranked.sort_by_key(|h| std::cmp::Reverse(h.0));
     let expected = sorted(
         ranked
             .iter()
@@ -957,7 +957,7 @@ fn auto_entry_is_kept_in_a_save_and_old_saves_have_none() {
     assert_eq!(back.all(|h| h.auto_entry), g.all(|h| h.auto_entry));
     let v = serde_json::to_value(back.state()).unwrap();
     assert_eq!(v["field"][0]["auto_entry"], true);
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     old.as_object_mut().unwrap().remove("auto_entry");
     let old = Game::from_json(&old.to_string()).unwrap();
     assert!(old.all(|h| h.auto_entry).iter().all(|a| !a));

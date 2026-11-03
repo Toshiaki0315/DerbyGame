@@ -190,7 +190,7 @@ fn trainers_are_kept_in_a_save_and_an_old_save_gets_them() {
     let back = Game::from_json(&g.to_json()).unwrap();
     assert_eq!(back.all(|h| h.trainer), g.all(|h| h.trainer));
     assert_eq!(back.all(|h| h.since_race), g.all(|h| h.since_race));
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     let o = old.as_object_mut().unwrap();
     o.remove("trainer_of");
     o.remove("since_race");

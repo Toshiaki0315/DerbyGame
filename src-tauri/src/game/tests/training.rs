@@ -265,7 +265,7 @@ fn temperament_and_dirt_progress_survive_a_save_and_old_saves_take_them_from_the
         (back.all(|h| h.temper), back.all(|h| h.dirt_progress)),
         (g.all(|h| h.temper), g.all(|h| h.dirt_progress))
     );
-    let mut v: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut v = old_save(&Game::new());
     v.as_object_mut().unwrap().remove("tempers");
     v.as_object_mut().unwrap().remove("dirt_progress");
     let old = Game::from_json(&v.to_string()).unwrap();
@@ -380,7 +380,7 @@ fn gear_is_kept_in_a_save_and_old_saves_race_without_any() {
     let back = Game::from_json(&g.to_json()).unwrap();
     assert_eq!(back.all(|h| h.gear), g.all(|h| h.gear));
     assert!(back.state().field[1].gear.shadow_roll);
-    let mut v: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut v = old_save(&Game::new());
     v.as_object_mut().unwrap().remove("gear");
     let old = Game::from_json(&v.to_string()).unwrap();
     assert!(old.all(|h| h.gear).iter().all(|g| *g == Gear::default()));
@@ -543,7 +543,7 @@ fn a_horse_too_tired_cannot_be_entered_and_is_left_out_by_default() {
     g.field[i].fatigue = RACE_FATIGUE_LIMIT;
     assert!(!g.eligible_horses(&race).contains(&i));
     assert_eq!(
-        g.set_entries(Some(&key), &[mine.clone()]),
+        g.set_entries(Some(&key), std::slice::from_ref(&mine)),
         Err(GameError::NotEligible)
     );
     let card = g.race_card(Some(&key)).unwrap();
@@ -586,7 +586,7 @@ fn fatigue_and_rest_survive_a_save_and_old_saves_start_fresh() {
     assert_eq!(st["field"][2]["fatigue"], 10);
     assert_eq!(st["field"][2]["resting"], true);
     assert_eq!(st["race_fatigue_limit"], RACE_FATIGUE_LIMIT);
-    let mut v: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut v = old_save(&Game::new());
     v.as_object_mut().unwrap().remove("fatigue");
     v.as_object_mut().unwrap().remove("resting");
     let old = Game::from_json(&v.to_string()).unwrap();
@@ -769,7 +769,7 @@ fn auto_training_is_kept_in_a_save_and_old_saves_have_none() {
     let v = serde_json::to_value(back.state()).unwrap();
     assert_eq!(v["field"][0]["auto_training"], true);
     assert_eq!(v["auto_keep_money"], g.auto_keep());
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     old.as_object_mut().unwrap().remove("auto_training");
     let old = Game::from_json(&old.to_string()).unwrap();
     assert!(old.all(|h| h.auto_training).iter().all(|a| !a));

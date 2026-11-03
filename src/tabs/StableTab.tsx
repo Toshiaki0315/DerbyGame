@@ -1,7 +1,7 @@
 // The trainers' stables and what they have to say.
 
 import { ORDER_LABELS, SEX_LABEL, bySide, recordText } from "../labels";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 import { HorseIcon, SideOptions } from "../widgets";
 
 export default function StableTab({ app }: { app: AppView }) {

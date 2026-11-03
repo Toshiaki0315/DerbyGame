@@ -4,7 +4,7 @@ import { GRADE_LABEL, SURFACE_LABEL, VENUE_LABEL, conditionText, monthOfWeek } f
 import { DEBUT_AGE, DIRT_LABEL, DIRT_WORDS, FIT_MARK, FIT_RATING_MARK, FIT_WORDS, FREE_RACE, GROWTH_MARK, GROWTH_WORDS, SEX_LABEL, STYLE_WORDS, TRACK_LABEL, badTrackMark, fitReasons, gearWords, isYoung, raceValue, recordText, starRecord, temperMark } from "../labels";
 import BetPanel from "./BetPanel";
 import RacePanel from "./RacePanel";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 import { FormBadge, GateBadge } from "../widgets";
 import { ReactNode } from "react";
 

@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn the_exponents_are_below_one_so_later_places_are_flatter_than_plain_harville() {
-        assert!(SECOND_PLACE_EXPONENT < 1.0 && THIRD_PLACE_EXPONENT < SECOND_PLACE_EXPONENT);
+        const { assert!(SECOND_PLACE_EXPONENT < 1.0 && THIRD_PLACE_EXPONENT < SECOND_PLACE_EXPONENT) };
         let p = field();
         // Harville: the favourite wins, then the 8% outsider takes 2nd with 0.08 / 0.60
         let harville_outsider = 0.40 * (0.08 / 0.60);

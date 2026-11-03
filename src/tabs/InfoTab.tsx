@@ -3,7 +3,7 @@
 import CourseMap, { MAP_HEIGHT, MAP_WIDTH } from "../CourseMap";
 import { courseShape, shapeKey } from "../courseShapes";
 import { FIT_RATING_MARK, STYLE_WORDS, TURN_LABEL, bySide, fitReasons } from "../labels";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 
 export default function InfoTab({ app }: { app: AppView }) {
   const { courses, fitHorseSel, game, setFitHorse, venueFits } = app;

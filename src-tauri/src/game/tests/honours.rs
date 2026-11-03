@@ -387,7 +387,7 @@ fn rivals_are_kept_in_a_save_and_an_old_save_gets_them() {
     g.stars[0].wins = 7;
     let back = Game::from_json(&g.to_json()).unwrap();
     assert_eq!(back.stars, g.stars);
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     old.as_object_mut().unwrap().remove("stars");
     let old = Game::from_json(&old.to_string()).unwrap();
     assert_eq!(old.stars.len(), 15);
@@ -702,7 +702,7 @@ fn achievements_are_kept_in_a_save_and_old_saves_start_clean() {
     assert_eq!(back.hall, g.hall);
     assert_eq!(back.awards, g.awards);
     assert_eq!(back.trainer_records, g.trainer_records);
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     let o = old.as_object_mut().unwrap();
     for k in ["careers", "hall", "awards", "trainer_records"] {
         o.remove(k);

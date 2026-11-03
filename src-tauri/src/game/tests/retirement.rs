@@ -60,7 +60,7 @@ fn a_retired_horse_no_longer_trains_or_runs() {
 fn retiring_takes_the_horse_out_of_this_weeks_entries() {
     let mut g = Game::new();
     let name = g.field[0].name.clone();
-    g.set_entries(None, &[name.clone()]).unwrap();
+    g.set_entries(None, std::slice::from_ref(&name)).unwrap();
     retire_ok(&mut g, &name);
     assert!(g.entries.values().all(|v| !v.contains(&name)));
 }
@@ -256,7 +256,7 @@ fn studs_and_news_survive_a_save_and_old_saves_have_none() {
     let back = Game::from_json(&serde_json::to_string(&g).unwrap()).unwrap();
     assert_eq!(back.studs, g.studs);
     assert_eq!(back.state(), g.state());
-    let mut v: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut v = old_save(&Game::new());
     v.as_object_mut().unwrap().remove("studs");
     v.as_object_mut().unwrap().remove("news");
     let old = Game::from_json(&v.to_string()).unwrap();

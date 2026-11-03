@@ -2,7 +2,7 @@
 
 import { KIND_LABEL, KIND_OPTIONS, KIND_ORDERED, KIND_PICKS, ORDERED_SLOTS, UNORDERED_SLOTS, selectionLabel } from "../labels";
 import { BetKind, BuyStyle } from "../types";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 
 export default function BetPanel({ app }: { app: AppView }) {
   const { addExpanded, addTickets, amount, axisSel, bettingOpen, busy, card, duplicate, effBox, effPartners, effStyle, fieldTooSmall, game, isSingle, kind, multiKind, newGame, outcome, pick, pickCount, quoteError, racing, runRace, runners, selection, setAmount, setAxis, setBoxPicks, setFrame, setKind, setPartners, setSlip, setStyle, slip, slipOdds, slipTotal, ticketOdds, toggleIn } = app;

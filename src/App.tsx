@@ -7,7 +7,8 @@ import PedigreeTab from "./tabs/PedigreeTab";
 import RaceTab from "./tabs/RaceTab";
 import StableTab from "./tabs/StableTab";
 import TrainTab from "./tabs/TrainTab";
-import { useGame, viewOf } from "./useGame";
+import { useGame } from "./useGame";
+import { viewOf } from "./view";
 import "./App.css";
 
 function App() {

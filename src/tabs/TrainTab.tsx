@@ -1,7 +1,7 @@
 // Work, rest and racing gear for the stable's horses.
 
 import { DIRT_LABEL, DIRT_WORDS, SEX_LABEL, gainText, recordText } from "../labels";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 import { FormBadge, HorseIcon } from "../widgets";
 
 export default function TrainTab({ app }: { app: AppView }) {

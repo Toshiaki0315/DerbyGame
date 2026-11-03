@@ -115,11 +115,13 @@ fn single_horse_tickets_are_priced_like_the_cards_odds() {
     let e = &card.entrants[3];
     let name = e.name.clone();
     assert_eq!(
-        g.quote_bet(None, BetKind::Win, &[name.clone()]).unwrap(),
+        g.quote_bet(None, BetKind::Win, std::slice::from_ref(&name))
+            .unwrap(),
         e.odds
     );
     assert_eq!(
-        g.quote_bet(None, BetKind::Place, &[name.clone()]).unwrap(),
+        g.quote_bet(None, BetKind::Place, std::slice::from_ref(&name))
+            .unwrap(),
         e.place_odds
     );
     assert!(g.play_combo(None, &[name], 10, 1, BetKind::Place).is_ok());
@@ -417,7 +419,7 @@ fn a_refused_ticket_changes_nothing() {
     let (a, b) = (card.entrants[0].name.clone(), card.entrants[1].name.clone());
     let before = g.state();
     assert_eq!(
-        g.play_combo(None, &[a.clone()], 10, 1, BetKind::Exacta),
+        g.play_combo(None, std::slice::from_ref(&a), 10, 1, BetKind::Exacta),
         Err(GameError::InvalidSelection)
     );
     assert_eq!(

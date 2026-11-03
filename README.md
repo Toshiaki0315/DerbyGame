@@ -129,14 +129,16 @@ make clean
 | `bloodlines.rs` | 持ち馬と血統データベースの対応 |
 | `honours.rs` | ライバル、目標、受賞、殿堂 |
 | `abroad.rs` | 海外遠征 |
-| `tests/` | `game/` のテスト。題材ごとのファイルに分かれ、共通の準備処理は `tests/mod.rs` にあります |
+| `tests/` | `game/` のテスト。題材ごとのファイルに分かれ、共通の準備処理は `tests/mod.rs` にあります。`tests/commands.rs` は画面と同じ形で命令を呼び、命令名と引数名が画面と合っていることも確かめます |
 
 ### 画面(`src/`)
 
 | ファイル | 内容 |
 | --- | --- |
 | `App.tsx` | 全体の枠組みとタブの切り替え |
-| `useGame.ts` | 画面の状態と操作をまとめたフック |
+| `useGame.ts` | 画面の状態と操作をまとめるフック。中身は `hooks/` に分かれています |
+| `hooks/` | 共通の状態(`useCore`)、レースと出走表(`useRaces`)、馬券(`useBetting`)、レースの再生(`useRaceShow`)、オートプレイ(`useAutoplay`)、繁殖(`useBreeding`)、競馬場(`useCourses`)、厩舎の馬(`useStable`) |
+| `view.ts` | 状態から計算して画面に渡す値 |
 | `types.ts` | ゲームの中身とやり取りするデータの型 |
 | `labels.ts` | 共通の文言と小さな計算 |
 | `widgets.tsx` | 共通の小さな部品 |

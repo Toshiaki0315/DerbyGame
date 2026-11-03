@@ -426,7 +426,7 @@ fn jockeys_are_kept_in_a_save_and_an_old_save_leaves_them_to_the_trainer() {
     let back = Game::from_json(&g.to_json()).unwrap();
     assert_eq!(back.all(|h| h.jockey), g.all(|h| h.jockey));
     assert_eq!(back.all(|h| h.partner), g.all(|h| h.partner));
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     let o = old.as_object_mut().unwrap();
     o.remove("jockey_of");
     o.remove("partner");

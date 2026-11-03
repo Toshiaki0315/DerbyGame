@@ -2,7 +2,7 @@
 
 import { GRADE_LABEL } from "../Calendar";
 import { SEX_LABEL, starRecord } from "../labels";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 
 export default function HonoursTab({ app }: { app: AppView }) {
   const { game, trainers } = app;

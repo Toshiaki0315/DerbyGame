@@ -38,6 +38,30 @@ fn a_stable_left_to_itself_gets_through_its_first_year_without_running_short() {
 }
 
 #[test]
+fn a_stable_left_to_itself_for_four_years_may_shrink_but_does_not_go_under() {
+    // 19 and 11 are the seeds that do worst: they have to sell horses to pay their way
+    for seed in [1u64, 11, 19, 23] {
+        let mut g = Game::with_seed(seed);
+        g.entry_rules = true;
+        g.set_all_auto(true);
+        for _ in 0..4 * calendar::WEEKS_PER_YEAR as u32 {
+            g.advance_week();
+            assert!(
+                !g.is_game_over(),
+                "seed {seed} in year {} week {}",
+                g.year,
+                g.week
+            );
+        }
+        assert!(
+            g.field.len() >= 4,
+            "seed {seed} is down to {}",
+            g.field.len()
+        );
+    }
+}
+
+#[test]
 fn the_whole_stable_can_be_left_to_its_trainers_and_taken_back() {
     let mut g = Game::new();
     g.field[1].auto_training = true;

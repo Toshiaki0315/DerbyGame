@@ -13,5 +13,8 @@ tauri = { version = "2.0.0", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+[dev-dependencies]
+tauri = { version = "2.0.0", features = ["test"] }
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]

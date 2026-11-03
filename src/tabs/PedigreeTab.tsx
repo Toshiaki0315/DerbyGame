@@ -2,7 +2,7 @@
 
 import Bloodline, { inbreedText } from "../Bloodline";
 import { DEBUT_AGE, SEX_LABEL, isYoung, mutationText, recordText } from "../labels";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 import { HorseIcon } from "../widgets";
 
 export default function PedigreeTab({ app }: { app: AppView }) {

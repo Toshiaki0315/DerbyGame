@@ -8,6 +8,7 @@ mod betting;
 mod bloodlines;
 mod breeding;
 mod calendar_races;
+mod commands;
 mod courses;
 mod farm;
 mod growth;

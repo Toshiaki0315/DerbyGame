@@ -523,7 +523,7 @@ fn records_go_to_stud_and_survive_a_save_and_old_saves_get_the_founders_records(
     let name = g.field[2].name.clone();
     g.retire(&name).unwrap();
     assert_eq!(g.studs[0].record, RaceRecord { starts: 9, wins: 5 });
-    let mut v: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut v = old_save(&Game::new());
     v.as_object_mut().unwrap().remove("records");
     let old = Game::from_json(&v.to_string()).unwrap();
     assert_eq!(old.all(|h| h.record), Game::new().all(|h| h.record));

@@ -6,7 +6,7 @@ import { COURSE_SHAPES, courseShape, shapeKey } from "../courseShapes";
 import { gateForRunner } from "../gates";
 import { HISTORY_SHOWN, KIND_LABEL, TRACK_LABEL, signed } from "../labels";
 import { finishView, gateSpot } from "../raceShow";
-import { AppView } from "../useGame";
+import { AppView } from "../view";
 import { HorseIcon } from "../widgets";
 
 export default function RacePanel({ app }: { app: AppView }) {

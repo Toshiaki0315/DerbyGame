@@ -323,7 +323,7 @@ fn injuries_and_legs_are_kept_in_a_save_and_old_saves_get_them() {
     let back = Game::from_json(&g.to_json()).unwrap();
     assert_eq!(back.all(|h| h.away.clone()), g.all(|h| h.away.clone()));
     assert_eq!(back.all(|h| h.legs), g.all(|h| h.legs));
-    let mut old: serde_json::Value = serde_json::to_value(Game::new()).unwrap();
+    let mut old = old_save(&Game::new());
     let o = old.as_object_mut().unwrap();
     o.remove("legs");
     o.remove("away");
