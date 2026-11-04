@@ -10,8 +10,9 @@ const MAX_TICKS: u32 = 10_000;
 /// Metres per second of a horse of average ability at an even pace, before the race's own pace.
 const AVERAGE_PACE: f64 = 19.0;
 /// How much of what sets the horses apart from the average shows on the track: ability
-/// and the luck of the day decide the order, but real fields finish seconds apart.
-const GAP_SHARE: f64 = 0.25;
+/// and the luck of the day decide the order, but real fields finish a second or three
+/// apart, and most races are won by a length or two.
+const GAP_SHARE: f64 = 0.06;
 /// The pace of an average horse over a distance: `PACE_FLOOR` + `PACE_SPRINT` / metres,
 /// which makes 55s for 1000m, 92s for 1600m and 143s for 2400m.
 const PACE_FLOOR: f64 = 15.8;
@@ -695,9 +696,9 @@ mod tests {
 
     #[test]
     fn a_field_finishes_within_seconds_of_the_winner() {
-        for (distance, most) in [(1000.0, 5.0), (2000.0, 9.0), (2400.0, 11.0)] {
+        for (distance, most) in [(1000.0, 2.0), (2000.0, 3.0), (2400.0, 4.0)] {
             let (_, gap) = times_over(distance);
-            assert!(gap > 1.0 && gap < most, "{distance}m: {gap}");
+            assert!(gap > 0.3 && gap < most, "{distance}m: {gap}");
         }
     }
 

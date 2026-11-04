@@ -16,8 +16,8 @@ const CHARGE_WINDOW: usize = 10;
 const CHARGE_CALL_GAP: usize = 8;
 /// A lead of at least this many metres at the 200m mark is a breakaway.
 const BREAKAWAY_GAP: f64 = 5.0;
-/// Finishing times closer than this (seconds) are called a photo finish.
-const PHOTO_FINISH_SECS: f64 = 0.1;
+/// Finishing times closer than this (seconds), a head or so, are called a photo finish.
+const PHOTO_FINISH_SECS: f64 = 0.03;
 
 /// Runner indices ordered front to back (ties keep field order).
 fn order(row: &[f64]) -> Vec<usize> {
@@ -378,7 +378,7 @@ mod tests {
             RaceResult {
                 rank: 2,
                 name: "ベータ".into(),
-                finish_time: 60.05,
+                finish_time: 60.02,
                 margin: String::new(),
             },
         ];

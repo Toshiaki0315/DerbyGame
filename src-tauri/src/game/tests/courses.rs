@@ -530,3 +530,73 @@ fn the_screen_is_told_the_weather_in_its_own_words() {
         "light_rain"
     );
 }
+
+// ---- how close races are (着差) ----
+
+/// The margin behind the winner and the seconds from first to last, over a run of races.
+fn finishes() -> (Vec<String>, Vec<f64>) {
+    let (mut margins, mut spreads) = (vec![], vec![]);
+    for seed in 1..=5u64 {
+        let mut g = Game::with_seed(seed);
+        g.entry_rules = true;
+        for r in calendar::shared()
+            .races
+            .iter()
+            .filter(|r| r.week % 13 == 1)
+            .take(30)
+        {
+            g.week = r.week;
+            let spec = g.race_spec(Some(&RaceKey::of(r))).unwrap();
+            let (_, res) = Game::run_race(&spec, seed * 1000 + r.race_no as u64);
+            margins.push(res[1].margin.clone());
+            spreads.push(res[res.len() - 1].finish_time - res[0].finish_time);
+        }
+    }
+    (margins, spreads)
+}
+
+#[test]
+fn most_races_are_won_by_two_lengths_or_less() {
+    let (margins, _) = finishes();
+    let close = [
+        "ハナ",
+        "アタマ",
+        "クビ",
+        "1/2馬身",
+        "3/4馬身",
+        "1馬身",
+        "1 1/4馬身",
+        "1 1/2馬身",
+        "1 3/4馬身",
+        "2馬身",
+    ];
+    let n = margins
+        .iter()
+        .filter(|m| close.contains(&m.as_str()))
+        .count();
+    assert!(n * 100 >= margins.len() * 60, "{n} of {}", margins.len());
+}
+
+#[test]
+fn some_finishes_are_a_neck_or_less_and_a_distance_is_rare() {
+    let (margins, _) = finishes();
+    let count = |names: &[&str]| {
+        margins
+            .iter()
+            .filter(|m| names.contains(&m.as_str()))
+            .count()
+    };
+    assert!(
+        count(&["同着", "ハナ", "アタマ", "クビ"]) * 100 >= margins.len() * 12,
+        "{margins:?}"
+    );
+    assert!(count(&["大差"]) * 100 <= margins.len(), "{margins:?}");
+}
+
+#[test]
+fn a_field_finishes_a_second_or_three_apart() {
+    let (_, mut spreads) = finishes();
+    spreads.sort_by(f64::total_cmp);
+    let median = spreads[spreads.len() / 2];
+    assert!((1.0..=3.0).contains(&median), "{median}");
+}
