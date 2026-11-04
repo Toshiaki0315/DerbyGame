@@ -99,6 +99,21 @@ export function useStable(core: Core, races: Races) {
     }, true);
   };
 
+  const goOverToJumps = async (name: string) => {
+    if (!window.confirm(`${name}を障害に転向させますか? 平地にも出られますが、調教師は障害レースを優先します。`)) return;
+    await attempt(async () => {
+      load(await invoke<GameState>("go_over_to_jumps", { name }));
+      setNotice(`${name}が障害に転向しました。障害練習で飛越を鍛えましょう。`);
+    }, true);
+  };
+
+  const takeJumpExam = (name: string) =>
+    attempt(async () => {
+      load(await invoke<GameState>("take_jump_exam", { name }));
+      setNotice(`${name}が障害試験に合格しました。`);
+      setCardVersion((v) => v + 1);
+    }, true);
+
   const recallHorse = (name: string) =>
     attempt(async () => {
       load(await invoke<GameState>("recall_horse", { name }));
@@ -151,6 +166,8 @@ export function useStable(core: Core, races: Races) {
     setAutoTraining,
     sendToPasture,
     geldHorse,
+    goOverToJumps,
+    takeJumpExam,
     recallHorse,
     restHorse,
     goAbroad,

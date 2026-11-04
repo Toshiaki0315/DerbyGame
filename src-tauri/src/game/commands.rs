@@ -15,6 +15,8 @@ pub fn handler<R: tauri::Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
         retire_horse,
         set_gear,
         geld_horse,
+        go_over_to_jumps,
+        take_jump_exam,
         rest_horse,
         set_auto_training,
         set_auto_entry,
@@ -340,6 +342,22 @@ pub fn set_gear(
         },
     )
     .map_err(|e| e.to_string())?;
+    Ok(g.state())
+}
+
+/// Sends a horse over to jumps (障害転向).
+#[tauri::command]
+pub fn go_over_to_jumps(store: tauri::State<GameStore>, name: String) -> Result<GameState, String> {
+    let mut g = store.0.lock().unwrap();
+    g.go_over_to_jumps(&name).map_err(|e| e.to_string())?;
+    Ok(g.state())
+}
+
+/// The jump exam (障害試験).
+#[tauri::command]
+pub fn take_jump_exam(store: tauri::State<GameStore>, name: String) -> Result<GameState, String> {
+    let mut g = store.0.lock().unwrap();
+    g.take_jump_exam(&name).map_err(|e| e.to_string())?;
     Ok(g.state())
 }
 

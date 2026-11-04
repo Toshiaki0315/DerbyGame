@@ -36,6 +36,8 @@ pub struct Entrant {
     pub coat_color: String,
     /// Racing equipment (馬具).
     pub gear: Gear,
+    /// Jumping ability (飛越), for a horse that runs over fences.
+    pub jump: u32,
     /// Fatigue (疲労度, 0-100); rivals come to a race fresh.
     pub fatigue: u32,
     /// The distances its trainer favours; rivals' trainers are not modelled.
@@ -53,6 +55,7 @@ pub struct Entrant {
 }
 
 /// Small deterministic generator (xorshift64*), so a race's field never changes between looks.
+#[derive(Debug, Clone)]
 pub struct Rng(u64);
 
 impl Rng {
@@ -236,7 +239,7 @@ pub fn generate(
             // horses entered in a dirt race can run on dirt; turf horses may or may not
             let dirt = match race.surface {
                 Surface::Dirt => rng.range(0, 2),
-                Surface::Turf => rng.range(-2, 1),
+                Surface::Turf | Surface::Jump => rng.range(-2, 1),
             } as i8;
             let style = Some(rival_style(&mut rng));
             // spread like the blood DB's, where inbreeding has worn temperaments down
@@ -260,6 +263,7 @@ pub fn generate(
                 temper,
                 coat_color,
                 gear: rival_gear(&mut rng, temper),
+                jump: rival_jump(race, seed, i),
                 fatigue: 0,
                 trainer_distance: None,
                 course_fit: None,
@@ -307,6 +311,7 @@ impl Star {
     /// The rival as a runner, on the form it shows that day.
     pub fn entrant(&self, rng: &mut Rng) -> Entrant {
         Entrant {
+            jump: 0,
             name: self.name.clone(),
             speed: self.speed,
             stamina: self.stamina,
@@ -371,6 +376,19 @@ pub fn new_star(rng: &mut Rng, age: u8, taken: &HashSet<String>) -> Star {
 }
 
 /// Half the hot-tempered rivals race in a メンコ; one in five wears a シャドーロール.
+/// What a rival has over fences: its own luck, so a flat race's field stays as it was.
+fn rival_jump(race: &CalendarRace, seed: u64, i: usize) -> u32 {
+    if race.surface != Surface::Jump {
+        return 0;
+    }
+    let base = match race.grade {
+        Grade::G1 | Grade::G2 | Grade::G3 => 65,
+        Grade::Maiden => 40,
+        _ => 50,
+    };
+    base + (mix_seed(&[seed, i as u64, 0x1A4B]) % 26) as u32
+}
+
 fn rival_gear(rng: &mut Rng, temper: u32) -> Gear {
     Gear {
         menko: temper < 40 && rng.chance(0.5),

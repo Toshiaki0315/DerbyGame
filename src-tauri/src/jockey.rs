@@ -56,8 +56,14 @@ impl Jockey {
             + (rides_together as f64 * PARTNER_PERCENT).min(PARTNER_LIMIT)
     }
 
+    /// Their hand over fences (障害の腕), 30-100, fixed for the jockey.
+    pub fn jump_skill(&self) -> u32 {
+        30 + (self.id as u32 * 37 + self.tact * 11 + self.skill * 3) % 71
+    }
+
     pub fn info(&self) -> JockeyInfo {
         JockeyInfo {
+            jump: self.jump_skill(),
             id: self.id,
             name: self.name.to_string(),
             skill: self.skill,
@@ -74,6 +80,8 @@ impl Jockey {
 /// A jockey as the screen shows them.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JockeyInfo {
+    /// Their hand over fences.
+    pub jump: u32,
     pub id: u8,
     pub name: String,
     pub skill: u32,
@@ -90,6 +98,8 @@ pub struct JockeyInfo {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ride {
     pub id: u8,
+    /// Their hand over fences.
+    pub jump_skill: u32,
     pub name: String,
     pub percent: f64,
     pub tact: u32,

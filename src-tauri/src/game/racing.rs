@@ -31,7 +31,12 @@ impl Game {
             * at_course
             * ridden
             * load;
-        let dist = form::distance_effect(distance, e.apt_min, e.apt_max);
+        // over fences it is a different game, and flat form says little about the trip
+        let dist = if surface == Surface::Jump {
+            form::distance_effect(e.apt_min, e.apt_min, e.apt_max)
+        } else {
+            form::distance_effect(distance, e.apt_min, e.apt_max)
+        };
         let speed = Self::run_speed(e, surface) as f64 * age * dist.speed;
         let (speed, stamina) = track::apply_track(
             speed,
@@ -68,9 +73,12 @@ impl Game {
     /// A calendar race counts in the records of the stable's runners (the free race does not).
     pub(super) fn add_to_records(&mut self, spec: &RaceSpec, results: &[RaceResult]) {
         let winner = results.first().map(|r| r.name.as_str());
+        let over_fences = spec.surface == Surface::Jump;
         for e in spec.entrants.iter().filter(|e| e.mine) {
             if let Some(i) = self.field.iter().position(|h| h.name == e.name) {
-                self.field[i].record.starts += 1;
+                if !over_fences {
+                    self.field[i].record.starts += 1;
+                }
                 self.field[i].since_race = 0;
                 if let Some(ride) = &e.jockey {
                     self.field[i].partner = Some(match self.field[i].partner {
@@ -79,7 +87,12 @@ impl Game {
                     });
                 }
                 if winner == Some(e.name.as_str()) {
-                    self.field[i].record.wins += 1;
+                    if over_fences {
+                        self.field[i].jump_wins += 1;
+                        self.field[i].year_jump_wins += 1;
+                    } else {
+                        self.field[i].record.wins += 1;
+                    }
                     if let Some(ride) = &e.jockey {
                         *self.year_wins.jockeys.entry(ride.id).or_default() += 1;
                     }
@@ -91,6 +104,11 @@ impl Game {
                     if let Some(sire) = sire {
                         *self.year_wins.sires.entry(sire).or_default() += 1;
                     }
+                }
+                if results.iter().all(|r| r.name != e.name) {
+                    self.news
+                        .push(format!("{}は競走中止となりました。", e.name));
+                    self.roll_injury(i, STOP_INJURY, 0x57A1);
                 }
             }
         }
@@ -121,11 +139,61 @@ impl Game {
         lines.sort_by_key(|l| l.frame); // stable: the start call stays first
     }
 
+    /// Adds a call for each mistake at a fence, and for each horse that did not finish.
+    pub(super) fn call_mishaps(
+        lines: &mut Vec<CommentLine>,
+        spec: &RaceSpec,
+        seed: u64,
+        frames: &[Vec<f64>],
+        stopped: &[String],
+    ) {
+        if frames.is_empty() {
+            return;
+        }
+        let mut race = Self::start_race(spec, seed);
+        race.run_to_finish();
+        for &(tick, runner) in &race.blunders {
+            lines.push(CommentLine {
+                frame: (tick as usize).min(frames.len() - 1),
+                text: format!("{}が飛越でミス!", spec.entrants[runner].name),
+            });
+        }
+        for name in stopped {
+            let Some(at) = spec.entrants.iter().position(|e| &e.name == name) else {
+                continue;
+            };
+            let last = frames[frames.len() - 1][at];
+            let frame = frames.iter().position(|f| f[at] >= last).unwrap_or(0);
+            lines.push(CommentLine {
+                frame,
+                text: format!("{name}が競走中止!"),
+            });
+        }
+        lines.sort_by_key(|l| l.frame);
+    }
+
     /// The finishing order alone, without recording the race (for the odds).
     pub(super) fn finish_order(spec: &RaceSpec, seed: u64) -> Vec<RaceResult> {
         let mut race = Self::start_race(spec, seed);
         race.run_to_finish();
         race.results()
+    }
+
+    /// A horse's jumping with its jockey up.
+    fn jump_with_jockey(e: &Entrant) -> u32 {
+        let help = e.jockey.as_ref().map_or(0, |j| {
+            (j.jump_skill as i64 - JUMP_JOCKEY_AVERAGE) / JUMP_JOCKEY_DIVISOR
+        });
+        (e.jump as i64 + help).clamp(0, 100) as u32
+    }
+
+    /// Those who started and did not finish (競走中止), in the order they started.
+    pub(super) fn did_not_finish(spec: &RaceSpec, results: &[RaceResult]) -> Vec<String> {
+        spec.entrants
+            .iter()
+            .filter(|e| results.iter().all(|r| r.name != e.name))
+            .map(|e| e.name.clone())
+            .collect()
     }
 
     pub(super) fn start_race(spec: &RaceSpec, seed: u64) -> Race {
@@ -136,6 +204,7 @@ impl Game {
                 style: e.style,
                 temper: (e.temper + e.jockey.as_ref().map_or(0, |j| j.tact)).min(MAX_STAT) as f64,
                 gear: e.gear,
+                jump: (spec.surface == Surface::Jump).then(|| Self::jump_with_jockey(e)),
             })
             .collect();
         Race::with_traits(Self::runners_for(spec), &traits, spec.distance as f64, seed)
@@ -165,6 +234,7 @@ impl Game {
         // a horse made to run against its natural way is harder to settle
         let against = order.is_some() && style.is_some() && order != style;
         Entrant {
+            jump: self.field[i].jump,
             temper: self.field[i].temper.saturating_sub(if against {
                 ORDER_TEMPER_COST
             } else {
@@ -287,9 +357,7 @@ impl Game {
             .filter(|&i| {
                 race.eligibility
                     .allows(self.field[i].age, self.field[i].sex == Sex::Female)
-                    && race
-                        .grade
-                        .admits(self.field[i].record.starts, self.field[i].record.wins)
+                    && self.admitted(i, race)
                     && !self.field[i].resting
                     && self.field[i].away.is_none()
                     && !self.short_of_earnings(i, race)
@@ -297,6 +365,21 @@ impl Game {
                     && self.field[i].fatigue < RACE_FATIGUE_LIMIT
             })
             .collect()
+    }
+
+    /// Whether a horse's class lets it into a race. Over fences it takes a horse that has
+    /// passed the exam, and only its wins over fences count.
+    pub(super) fn admitted(&self, i: usize, race: &CalendarRace) -> bool {
+        let h = &self.field[i];
+        if race.surface == Surface::Jump {
+            return h.jump_license
+                && match race.grade {
+                    Grade::Maiden => h.jump_wins == 0,
+                    Grade::G1 | Grade::G2 | Grade::G3 => h.jump_wins >= 1,
+                    _ => true,
+                };
+        }
+        race.grade.admits(h.record.starts, h.record.wins)
     }
 
     /// The Classics are for horses that could go on to stud.
@@ -307,7 +390,11 @@ impl Game {
     /// Whether a G1 is closed to a horse: it takes horses with enough earnings or a
     /// right from its trial.
     pub(super) fn short_of_earnings(&self, i: usize, race: &CalendarRace) -> bool {
-        if !self.entry_rules || race.week == 0 || race.grade != Grade::G1 {
+        if !self.entry_rules
+            || race.week == 0
+            || race.grade != Grade::G1
+            || race.surface == Surface::Jump
+        {
             return false;
         }
         let needed = if race.eligibility.age == AgeRule::Two {
@@ -328,6 +415,10 @@ impl Game {
     pub(super) fn nominations(&self, race: &CalendarRace) -> Option<(usize, usize)> {
         (self.entry_rules && race.week != 0).then(|| {
             let seed = self.race_seed(race, 0xF1E1D);
+            if race.surface == Surface::Jump {
+                let (fewest, most) = JUMP_RIVALS;
+                return ((fewest + seed % (most - fewest + 1)) as usize, JUMP_GATE);
+            }
             (
                 entries::nominated_rivals(race.grade, seed),
                 entries::full_gate(race.venue),
@@ -489,15 +580,22 @@ impl Game {
                     Some(i) if e.mine => self.field[i].record.wins,
                     _ => (e.speed as i64 - class).max(0) as u32 / RIVAL_SPEED_PER_WIN,
                 };
-                e.weight = Some(weight::carried(
-                    &race.eligibility,
-                    race.week,
-                    e.age,
-                    e.sex == Sex::Female,
-                    wins,
-                    e.speed,
-                    class,
-                ));
+                let fences = if race.surface == Surface::Jump {
+                    JUMP_EXTRA_KG
+                } else {
+                    0
+                };
+                e.weight = Some(
+                    weight::carried(
+                        &race.eligibility,
+                        race.week,
+                        e.age,
+                        e.sex == Sex::Female,
+                        wins,
+                        e.speed,
+                        class,
+                    ) + fences,
+                );
             }
         }
 
@@ -565,6 +663,11 @@ impl Game {
             distance: spec.distance,
             surface: spec.surface,
             track: spec.track,
+            fences: if spec.surface == Surface::Jump {
+                race::fences_in(spec.distance as f64)
+            } else {
+                0
+            },
             weather: spec
                 .race
                 .as_ref()
@@ -631,6 +734,7 @@ impl Game {
                         .and_then(|r| form::season_note(&e.name, r.week))
                         .map(str::to_string),
                     gelded: e.mine && self.field.iter().any(|h| h.name == e.name && h.gelded),
+                    jump: e.jump,
                     name: e.name.clone(),
                     speed: e.speed,
                     stamina: e.stamina,
@@ -644,7 +748,11 @@ impl Game {
                     age_form: form::age_form(e.age, e.peak_age),
                     apt_min: e.apt_min,
                     apt_max: e.apt_max,
-                    distance_fit: form::distance_effect(spec.distance, e.apt_min, e.apt_max).fit,
+                    distance_fit: if spec.surface == Surface::Jump {
+                        form::DistanceFit::Fit
+                    } else {
+                        form::distance_effect(spec.distance, e.apt_min, e.apt_max).fit
+                    },
                     style: e.style,
                     temper: e.temper,
                     coat_color: e.coat_color.clone(),
@@ -729,10 +837,21 @@ impl Game {
             trainer::Aim::Glory => jockey::BUDGET_GLORY,
         };
         let roster = self.jockeys_now();
+        // over fences a trainer looks for a jumps rider
+        let over_fences = || {
+            roster
+                .iter()
+                .filter(|j| {
+                    race.surface == Surface::Jump && j.fee <= budget && !taken.contains(&j.id)
+                })
+                .max_by_key(|j| j.jump_skill())
+                .copied()
+        };
         let j = self.field[i]
             .jockey
             .and_then(|id| roster.iter().find(|j| j.id == id).copied())
             .filter(|j| !taken.contains(&j.id))
+            .or_else(over_fences)
             .or_else(|| {
                 jockey::pick_from(
                     &roster,
@@ -748,6 +867,7 @@ impl Game {
             .filter(|p| p.0 == j.id)
             .map_or(0, |p| p.1);
         Some(Ride {
+            jump_skill: j.jump_skill(),
             id: j.id,
             name: j.name.to_string(),
             percent: j.percent(e.style, turn, together),

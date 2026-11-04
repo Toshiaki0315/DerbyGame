@@ -139,6 +139,37 @@ impl Genes {
     }
 }
 
+/// What a record from before jumping was kept has in it over fences.
+pub const NEUTRAL_JUMP: f64 = 50.0;
+
+fn neutral_jump() -> f64 {
+    NEUTRAL_JUMP
+}
+
+/// A foal's jumping ability, taken from its parents. It has its own luck, so that the
+/// rest of the database comes out the same as it did before jumping was kept.
+fn inherited_jump(sire: &BloodHorse, dam: &BloodHorse, id: u32, stats: &Stats) -> f64 {
+    let mut rng = Rng::new(mix(&[
+        sire.id as u64,
+        dam.id as u64,
+        id as u64,
+        stats.speed.to_bits(),
+    ]));
+    let (jump, _) = base_stat_with(sire.jump, dam.jump, 8.0, 0.0, &mut rng);
+    (jump * 10.0).round() / 10.0
+}
+
+/// What a founder has in it over fences.
+fn founder_jump(id: u32) -> f64 {
+    (20 + mix(&[id as u64, 0x1A4B]) % 61) as f64
+}
+
+fn mix(parts: &[u64]) -> u64 {
+    parts.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, p| {
+        (h ^ p).wrapping_mul(0x0000_0100_0000_01b3)
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BloodHorse {
     pub id: u32,
@@ -156,6 +187,9 @@ pub struct BloodHorse {
     pub growth_factor: f64,
     pub growth_type: String,
     pub peak_age: u8,
+    /// What it has in it over fences (飛越), 0-100.
+    #[serde(default = "neutral_jump")]
+    pub jump: f64,
     /// Best distance range in metres.
     pub aptitude_min: u32,
     pub aptitude_max: u32,
@@ -493,6 +527,7 @@ pub fn breed_with(
         growth_factor,
         growth_type: growth_type.to_string(),
         peak_age,
+        jump: inherited_jump(sire, dam, id, &stats),
         aptitude_min: dist_min,
         aptitude_max: dist_max,
         running_style: style,
@@ -798,6 +833,7 @@ fn founder(
         genes,
         growth_factor,
         growth_type: growth_type.into(),
+        jump: founder_jump(id),
         peak_age: lo, // founders peak at the early end of their type's range
         aptitude_min,
         aptitude_max,

@@ -26,6 +26,7 @@ export default function InfoTab({ app }: { app: AppView }) {
                   <li>{STYLE_WORDS[j.style]}</li>
                   <li>{TURN_LABEL[j.turn]}</li>
                   <li>{`折り合い ${j.tact}`}</li>
+                  {j.jump !== undefined && <li>{`障害 ${j.jump}`}</li>}
                   <li>{`騎乗料 ${j.fee}`}</li>
                 </ul>
                 <p className="muted">{j.description}</p>

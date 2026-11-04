@@ -78,6 +78,8 @@ fn every_call(horse: &str, mare: &str, sire: &str) -> Vec<(&'static str, Value)>
         ("set_order", json!({"horse": horse, "order": null})),
         ("rest_horse", json!({"horse": horse})),
         ("geld_horse", json!({"name": sire})),
+        ("go_over_to_jumps", json!({"name": horse})),
+        ("take_jump_exam", json!({"name": horse})),
         ("pasture_horse", json!({"name": horse})),
         ("recall_horse", json!({"name": horse})),
         ("accept_advice", json!({"horse": horse})),

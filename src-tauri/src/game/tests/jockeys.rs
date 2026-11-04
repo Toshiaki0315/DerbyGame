@@ -280,6 +280,7 @@ fn a_good_jockey_brings_more_out_of_a_horse() {
     let plain = fit_runner(4, 4, (1000, 3600));
     let mut up = plain.clone();
     up.jockey = Some(Ride {
+        jump_skill: 60,
         id: 0,
         name: "A".into(),
         percent: 2.0,
@@ -313,6 +314,7 @@ fn a_tactful_jockey_settles_a_hot_horse() {
     spec.entrants[at].jockey = None;
     let alone = pulls(&spec);
     spec.entrants[at].jockey = Some(Ride {
+        jump_skill: 60,
         id: 0,
         name: "A".into(),
         percent: 0.0,

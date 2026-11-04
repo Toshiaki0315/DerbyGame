@@ -63,6 +63,8 @@ export interface BloodTraits {
   aptitude_max: number;
   running_style: string;
   personality: string;
+  /** What it has in it over fences. */
+  jump?: number;
   inbreed_vol: number;
   /** Stats that mutated, by name. */
   mutations: string[];
@@ -116,6 +118,10 @@ export interface HorseEntry {
   /** What it would sell for. */
   sale_price?: number;
   gelded?: boolean;
+  jumper?: boolean;
+  jump?: number;
+  jump_license?: boolean;
+  jump_wins?: number;
   /** The strength of its legs (脚元). */
   legs?: number;
   /** At pasture or injured. */
@@ -219,6 +225,8 @@ export interface GameState {
   weekly_upkeep?: number;
   /** What gelding a colt costs. */
   gelding_cost?: number;
+  jump_exam_level?: number;
+  jump_exam_cost?: number;
   leading?: Leading;
   leading_years?: LeadingYear[];
   /** The rivals racing now, honours won, the hall of fame and the trainers' records. */
@@ -296,6 +304,8 @@ export interface TrainerRecord {
 
 /** A jockey and their ways. */
 export interface JockeyInfo {
+  /** Their hand over fences. */
+  jump?: number;
   id: number;
   name: string;
   /** Where they are based: 美浦 or 栗東. */
@@ -368,7 +378,7 @@ export interface TrainerInfo {
   description: string;
 }
 
-export type Ability = "speed" | "stamina" | "power" | "temper" | "dirt";
+export type Ability = "speed" | "stamina" | "power" | "temper" | "dirt" | "jump";
 
 export interface WorkoutInfo {
   workout: string;
@@ -455,6 +465,8 @@ export interface SlipTicket {
 export type BuyStyle = "normal" | "box" | "flow";
 
 export interface RoundOutcome {
+  /** Those who started and did not finish. */
+  stopped?: string[];
   results: RaceResult[];
   frames: number[][];
   commentary: CommentLine[];
@@ -509,6 +521,7 @@ export interface Runner {
   odds: number;
   place_odds: number;
   gelded?: boolean;
+  jump?: number;
   /** What the season is doing to it this week. */
   season?: string | null;
   /** Its place in the betting (人気). */
@@ -530,10 +543,12 @@ export interface RaceCard {
     straight_course?: boolean;
   };
   distance: number;
-  surface: "turf" | "dirt";
+  surface: "turf" | "dirt" | "jump";
   /** Track condition (馬場状態) on the day. */
   track?: Track;
   weather?: Weather;
+  /** How many fences there are (none on the flat). */
+  fences?: number;
   entrants: Runner[];
   /** Every horse in the stable: whether it can run in this race and whether it is entered. */
   my_horses: { name: string; eligible: boolean; entered: boolean; gear?: Gear; fatigue?: number; resting?: boolean; away?: Away | null; barred?: string | null; registered?: boolean; drawn_out?: boolean }[];

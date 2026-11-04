@@ -21,12 +21,12 @@ fn the_card_says_where_the_race_is_and_which_way_it_turns() {
         }
     );
     let straight = match race.surface {
-        Surface::Turf => course.turf.straight,
+        Surface::Turf | Surface::Jump => course.turf.straight,
         Surface::Dirt => course.dirt.straight,
     };
     assert_eq!(card.course.straight, straight);
     let lap = match race.surface {
-        Surface::Turf => course.turf.lap_metres(),
+        Surface::Turf | Surface::Jump => course.turf.lap_metres(),
         Surface::Dirt => course.dirt.lap_metres(),
     };
     assert_eq!(card.course.lap, lap);

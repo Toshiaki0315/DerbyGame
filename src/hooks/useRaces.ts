@@ -1,6 +1,6 @@
 // This week's races, the one chosen, and its field.
 
-import { CalendarData, CalendarRace, VENUE_LABEL, admits, ageAllows, racesOfWeek } from "../Calendar";
+import { CalendarData, CalendarRace, VENUE_LABEL, admits, ageAllows, mayRunOver, racesOfWeek } from "../Calendar";
 import { FREE_RACE, raceKey, raceValue } from "../labels";
 import { RaceCard } from "../types";
 import { Core } from "./useCore";
@@ -33,7 +33,7 @@ export function useRaces(core: Core, autoplay: boolean) {
       (h) =>
         h.age !== undefined &&
         ageAllows(r, h.age, h.sex === "female") &&
-        admits(r.grade, h.record?.starts ?? 0, h.record?.wins ?? 0)
+        (r.surface === "jump" ? mayRunOver(r, h) : admits(r.grade, h.record?.starts ?? 0, h.record?.wins ?? 0))
     );
   useEffect(() => {
     invoke<CalendarData>("get_calendar")

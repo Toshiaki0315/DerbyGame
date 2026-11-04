@@ -366,3 +366,5 @@ button.link { background: none; border: none; padding: 0; color: #14532d; font-w
 
 .leading-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .leading-history { margin: 12px 0 0; padding-left: 18px; font-size: 13px; }
+.map-fence { fill: #7a4b2a; }
+.stopped { color: #b3261e; font-weight: 600; }

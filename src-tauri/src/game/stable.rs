@@ -169,6 +169,54 @@ impl Game {
         Ok(())
     }
 
+    /// Sends a horse over to jumps (障害転向). It may still run on the flat.
+    pub fn go_over_to_jumps(&mut self, name: &str) -> Result<(), GameError> {
+        let i = self.slot(name)?;
+        if self.field[i].jumper {
+            return Err(GameError::AlreadyJumper);
+        }
+        if self.field[i].age < JUMP_MIN_AGE {
+            return Err(GameError::TooYoung);
+        }
+        let start = self.jump_in_blood(i) * JUMP_START_SHARE;
+        self.field[i].jumper = true;
+        self.field[i].jump = (start.round() as u32).clamp(1, JUMP_EXAM_LEVEL - 1);
+        Ok(())
+    }
+
+    /// The jump exam (障害試験): a horse that passes may run over fences.
+    pub fn take_jump_exam(&mut self, name: &str) -> Result<(), GameError> {
+        let i = self.slot(name)?;
+        if !self.field[i].jumper {
+            return Err(GameError::NotJumper);
+        }
+        if self.field[i].jump_license {
+            return Err(GameError::AlreadyLicensed);
+        }
+        if self.field[i].jump < JUMP_EXAM_LEVEL {
+            return Err(GameError::JumpTooLow);
+        }
+        // the whole of the money would end the game
+        if JUMP_EXAM_COST >= self.money {
+            return Err(GameError::InsufficientFunds);
+        }
+        self.money -= JUMP_EXAM_COST;
+        self.field[i].jump_license = true;
+        Ok(())
+    }
+
+    fn jump_in_blood(&self, i: usize) -> f64 {
+        self.blood_record(self.field[i].blood_id)
+            .map_or(bloodline::NEUTRAL_JUMP, |r| r.jump)
+    }
+
+    /// How good at fences schooling can make a horse: every one can pass the exam, and
+    /// what is in its blood takes it further.
+    pub(super) fn jump_ceiling(&self, i: usize) -> u32 {
+        let reach = JUMP_EXAM_LEVEL as f64 + self.jump_in_blood(i) * JUMP_CEILING_SHARE;
+        (reach.round() as u32).min(100)
+    }
+
     /// The horses old enough to race, away for now or not.
     pub(super) fn racers(&self) -> usize {
         self.field.iter().filter(|h| h.age >= DEBUT_AGE).count()

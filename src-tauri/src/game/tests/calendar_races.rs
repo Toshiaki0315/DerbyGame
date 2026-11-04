@@ -92,6 +92,7 @@ fn week_year_and_ages_survive_save_and_load() {
 fn dirt_aptitude_changes_speed_only_on_dirt() {
     use crate::calendar::Surface;
     let mk = |dirt: i8| crate::rivals::Entrant {
+        jump: 0,
         name: "テスト".into(),
         speed: 80,
         stamina: 70,
@@ -356,6 +357,7 @@ fn dirt_races_favour_dirt_specialists() {
     use crate::calendar::Surface;
     // two identical horses except for dirt aptitude, racing on dirt
     let mk = |name: &str, dirt: i8| crate::rivals::Entrant {
+        jump: 0,
         name: name.into(),
         speed: 78,
         stamina: 78,

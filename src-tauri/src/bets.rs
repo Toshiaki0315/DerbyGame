@@ -118,7 +118,13 @@ pub fn combo_probability(p: &[f64], kind: BetKind, idx: &[usize]) -> Option<f64>
 }
 
 /// Whether a ticket on `picked` hit, given the full finishing `order` (winner first).
+#[cfg(test)]
 pub fn is_hit(kind: BetKind, picked: &[String], order: &[String]) -> bool {
+    is_hit_among(kind, picked, order, order.len())
+}
+
+/// [`is_hit`] when `runners` started and only those in `order` finished.
+pub fn is_hit_among(kind: BetKind, picked: &[String], order: &[String], runners: usize) -> bool {
     let n = picks(kind);
     if picked.len() != n || order.len() < n.max(1) {
         return false;
@@ -133,7 +139,7 @@ pub fn is_hit(kind: BetKind, picked: &[String], order: &[String]) -> bool {
     };
     match kind {
         BetKind::Win => order[0] == picked[0],
-        BetKind::Place => top(place_slots(order.len())).contains(&picked[0]),
+        BetKind::Place => top(place_slots(runners)).contains(&picked[0]),
         BetKind::Wide => picked.iter().all(|h| top(3).contains(h)),
         BetKind::Exacta => top(2) == picked,
         BetKind::Quinella => same_set(top(2), picked),
@@ -782,5 +788,22 @@ mod tests {
     #[test]
     fn no_field_no_popularity() {
         assert!(popularity(&[]).is_empty());
+    }
+
+    #[test]
+    fn the_places_a_show_ticket_pays_on_go_by_who_started() {
+        // eight started and one pulled up: three places still pay
+        let order = names(&["A", "B", "C", "D", "E", "F", "G"]);
+        assert!(is_hit_among(Place, &names(&["C"]), &order, 8));
+        assert!(!is_hit_among(Place, &names(&["D"]), &order, 8));
+        assert!(!is_hit_among(Place, &names(&["C"]), &order, 7));
+    }
+
+    #[test]
+    fn a_ticket_on_a_horse_that_did_not_finish_loses() {
+        let order = names(&["A", "B", "C"]);
+        assert!(!is_hit_among(Win, &names(&["Z"]), &order, 8));
+        assert!(!is_hit_among(Wide, &names(&["A", "Z"]), &order, 8));
+        assert!(!is_hit_among(Place, &names(&["Z"]), &order, 8));
     }
 }

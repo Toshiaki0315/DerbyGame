@@ -5,7 +5,7 @@ import { AppView } from "../view";
 import { HorseIcon, SideOptions } from "../widgets";
 
 export default function StableTab({ app }: { app: AppView }) {
-  const { abroadHorse, acceptAdvice, advice, busy, game, geldHorse, goAbroad, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
+  const { abroadHorse, acceptAdvice, advice, busy, game, geldHorse, goAbroad, goOverToJumps, takeJumpExam, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
   return (
       <main role="tabpanel" aria-label="厩舎">
         <section className="panel">
@@ -113,6 +113,26 @@ export default function StableTab({ app }: { app: AppView }) {
                               {`売却 ${h.sale_price}`}
                             </button>
                             
+                          )}
+                          {!h.jumper ? (
+                            <button
+                              aria-label={`${h.name}を障害転向`}
+                              disabled={busy || (h.age ?? 0) < 3}
+                              onClick={() => goOverToJumps(h.name)}
+                            >
+                              障害転向
+                            </button>
+                          ) : !h.jump_license ? (
+                            <button
+                              aria-label={`${h.name}の障害試験`}
+                              disabled={busy || (h.jump ?? 0) < (game.jump_exam_level ?? 0)}
+                              title={`飛越${game.jump_exam_level ?? 0}以上で受けられます`}
+                              onClick={() => takeJumpExam(h.name)}
+                            >
+                              {`障害試験 ${game.jump_exam_cost ?? 0}`}
+                            </button>
+                          ) : (
+                            <span className="muted">障害馬</span>
                           )}
                           {h.sex === "male" && !h.gelded && (
                               <button

@@ -402,7 +402,7 @@ impl Game {
             .iter()
             .zip(&odds)
             .map(|(t, &o)| {
-                let won = bets::is_hit(t.kind, &t.horses, &order);
+                let won = bets::is_hit_among(t.kind, &t.horses, &order, spec.entrants.len());
                 TicketResult {
                     kind: t.kind,
                     horses: t.horses.clone(),
@@ -454,6 +454,12 @@ impl Game {
                 BetKind::Win,
                 mine.iter()
                     .map(|(name, rank)| format!("{name} {rank}着"))
+                    .chain(
+                        Self::did_not_finish(&spec, &results)
+                            .into_iter()
+                            .filter(|n| spec.entrants.iter().any(|e| e.mine && &e.name == n))
+                            .map(|n| format!("{n} 競走中止")),
+                    )
                     .collect::<Vec<_>>()
                     .join("、"),
                 mine.iter().map(|(name, _)| name.to_string()).collect(),
@@ -488,8 +494,11 @@ impl Game {
         let mut commentary =
             commentary::generate(&runners, &frames, spec.distance as f64, &results);
         Self::call_pulling(&mut commentary, &Self::pulled(&spec, seed), frames.len());
+        let stopped = Self::did_not_finish(&spec, &results);
+        Self::call_mishaps(&mut commentary, &spec, seed, &frames, &stopped);
 
         Ok(RoundOutcome {
+            stopped,
             results,
             frames,
             commentary,

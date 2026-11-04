@@ -9,6 +9,7 @@ import { FormBadge, GateBadge } from "../widgets";
 import { ReactNode } from "react";
 
 export default function RaceTab({ app, messages }: { app: AppView; messages: ReactNode }) {
+  const overFences = app.card?.surface === "jump";
   const { busy, canRun, card, chooseRaceOf, chosenRace, game, isRegistered, nextWeek, raceFatigueLimit, raceGroups, raceSel, runners, selection, toggleEntry } = app;
   return (
     <>
@@ -127,7 +128,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
           <thead>
             <tr>
               <th align="left">馬</th><th>性齢</th><th>スピード</th><th>スタミナ</th><th>パワー</th><th>調子</th>
-              <th title="レースで背負う重さです。重いほど不利で、1kgで能力が0.3%変わります。別定は勝ち数で増え、ハンデは強い馬ほど重くなります。">斤量</th><th>馬具</th><th>脚質</th><th>気性</th><th>成長</th><th>距離</th><th>場</th><th>騎手</th><th>ダート</th><th>道悪</th><th>単勝</th><th>複勝</th><th title="単勝オッズの低い順です。">人気</th>
+              <th title="レースで背負う重さです。重いほど不利で、1kgで能力が0.3%変わります。別定は勝ち数で増え、ハンデは強い馬ほど重くなります。">斤量</th><th>馬具</th><th>脚質</th><th>気性</th><th>成長</th><th>距離</th><th>場</th><th>騎手</th><th>ダート</th><th>道悪</th><th>単勝</th><th>複勝</th><th title="単勝オッズの低い順です。">人気</th>{overFences && <th title="障害を飛ぶうまさです。">飛越</th>}
             </tr>
           </thead>
           <tbody>
@@ -232,6 +233,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                 <td align="center">{`x${h.odds.toFixed(1)}`}</td>
                 <td align="center">{`x${h.place_odds.toFixed(1)}`}</td>
                 <td align="center" aria-label={`${h.name}: ${h.popularity}番人気`}>{h.popularity}</td>
+                {overFences && <td align="center">{h.jump}</td>}
               </tr>
             ))}
           </tbody>

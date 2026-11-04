@@ -54,6 +54,7 @@ export default function PedigreeTab({ app }: { app: AppView }) {
                 <li>{`成長型: ${h.blood.growth_type}(${h.blood.peak_age}歳ごろがピーク)`}</li>
                 <li>{`脚質: ${h.blood.running_style}`}</li>
                 <li>{`性格: ${h.blood.personality}`}</li>
+                {h.blood.jump !== undefined && <li>{`飛越の血: ${Math.round(h.blood.jump)}`}</li>}
                 <li>{`距離適性: ${h.blood.aptitude_min}m〜${h.blood.aptitude_max}m`}</li>
                 <li>{`近親度: ${inbreedText(h.blood.inbreed_vol)}`}</li>
                 {h.blood.mutations.length > 0 && (

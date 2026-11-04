@@ -267,6 +267,26 @@ pub const GELDING_CALM: u32 = 20;
 /// Weeks at pasture getting over it.
 pub const GELDING_WEEKS: u32 = 8;
 
+/// The youngest a horse may go over to jumps.
+pub(super) const JUMP_MIN_AGE: u8 = 3;
+/// The jumping ability the jump exam (障害試験) asks for, and what it costs.
+pub const JUMP_EXAM_LEVEL: u32 = 30;
+pub const JUMP_EXAM_COST: u32 = 100;
+/// What a horse going over to jumps has of what is in it, and the most it can reach
+/// besides the exam's level.
+pub(super) const JUMP_START_SHARE: f64 = 0.2;
+pub(super) const JUMP_CEILING_SHARE: f64 = 0.7;
+/// How much more a horse carries over fences than on the flat.
+pub(super) const JUMP_EXTRA_KG: u32 = 4;
+/// What a jump race can start, and how many others are put forward for one.
+pub(super) const JUMP_GATE: usize = 14;
+pub(super) const JUMP_RIVALS: (u64, u64) = (8, 13);
+/// Points of jumping a jockey's hand is worth for each of the jockey's own above the average.
+pub(super) const JUMP_JOCKEY_DIVISOR: i64 = 4;
+pub(super) const JUMP_JOCKEY_AVERAGE: i64 = 60;
+/// Chance of a horse that pulled up being hurt.
+pub(super) const STOP_INJURY: f64 = 0.3;
+
 /// Most retired horses kept for breeding.
 pub const MAX_STUDS: usize = 6;
 
@@ -360,6 +380,8 @@ pub(super) const TITLE_CROWN: &str = "三冠";
 pub(super) const TITLE_FILLIES_CROWN: &str = "牝馬三冠";
 
 pub(super) const TITLE_HORSE_OF_THE_YEAR: &str = "年度代表馬";
+
+pub(super) const TITLE_BEST_JUMPER: &str = "最優秀障害馬";
 
 pub(super) const TITLE_LINE: &str = "系統確立";
 

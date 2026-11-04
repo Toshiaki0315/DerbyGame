@@ -151,7 +151,7 @@ fn after_goal(venue: Venue, surface: Surface) -> f64 {
         Venue::Sonoda => (0.0, 25.0),
     };
     match surface {
-        Surface::Turf => turf,
+        Surface::Turf | Surface::Jump => turf,
         Surface::Dirt => dirt,
     }
 }
@@ -170,6 +170,9 @@ const TURF_STARTS: &[(Venue, u32)] = &[
 
 /// Distances with the corners a race over them goes round.
 type CornersBy = &'static [(u32, u8)];
+
+/// The corners of a race over fences, which goes round more than once.
+const JUMP_CORNERS: u8 = 8;
 
 /// The corners a race goes round, by course, surface and distance.
 const CORNERS: &[(Venue, Surface, CornersBy)] = &[
@@ -344,14 +347,21 @@ fn metres_in(text: &str) -> Vec<f64> {
 pub fn plan_of(venue: Venue, surface: Surface, distance: u32) -> CoursePlan {
     let course = course_of(venue);
     let track = match surface {
-        Surface::Turf => &course.turf,
+        Surface::Turf | Surface::Jump => &course.turf,
         Surface::Dirt => &course.dirt,
     };
     let corners = CORNERS
         .iter()
         .find(|(v, s, _)| *v == venue && *s == surface)
         .and_then(|(_, _, by)| by.iter().find(|(d, _)| *d == distance))
-        .map_or(0, |(_, n)| *n);
+        .map_or(
+            if surface == Surface::Jump {
+                JUMP_CORNERS
+            } else {
+                0
+            },
+            |(_, n)| *n,
+        );
     let turf_start = surface == Surface::Dirt && TURF_STARTS.contains(&(venue, distance));
     if venue == Venue::Niigata && surface == Surface::Turf && distance == STRAIGHT_COURSE_METRES {
         return CoursePlan {
@@ -690,7 +700,7 @@ pub fn fit(
 ) -> CourseFit {
     let course = course_of(venue);
     let track = match surface {
-        Surface::Turf => &course.turf,
+        Surface::Turf | Surface::Jump => &course.turf,
         Surface::Dirt => &course.dirt,
     };
     let turn = match turn_preference(name) {

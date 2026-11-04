@@ -58,6 +58,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                       <span>{`${sexLabel(h)}${h.age ?? ""}`}</span>
                       <span>{trainers.find((t) => t.id === h.trainer)?.name ?? "-"}</span>
                       <span>{h.record ? recordText(h.record) : "-"}</span>
+                      {h.jumper && <span aria-label={`${h.name}の飛越`}>{`飛越 ${h.jump ?? 0}`}</span>}
                     </div>
                   </td>
                   <td align="center">{h.speed}</td>
@@ -111,7 +112,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                             disabled={racing}
                             onChange={(e) => setMenus({ ...menus, [h.name]: e.target.value })}
                           >
-                            {workouts.map((w) => (
+                            {workouts.filter((w) => w.workout !== "jump" || h.jumper).map((w) => (
                               <option key={w.workout} value={w.workout}>{w.name}</option>
                             ))}
                           </select>

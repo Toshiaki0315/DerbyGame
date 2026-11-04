@@ -160,6 +160,7 @@ fn each_workout_changes_its_abilities() {
 #[test]
 fn every_workout_costs_one_session() {
     let mut g = mid_horse();
+    g.field[0].jumper = true;
     let name = g.field[0].name.clone();
     for w in Workout::ALL {
         let cost = g.train_cost(&name).unwrap();
@@ -291,7 +292,8 @@ fn the_state_lists_the_workouts_for_the_ui() {
             "プール",
             "併せ馬",
             "曳き運動",
-            "ダートコース"
+            "ダートコース",
+            "障害練習",
         ]
     );
     let hill = &v["workouts"][1];
@@ -417,6 +419,7 @@ fn a_foal_starts_without_gear() {
 #[test]
 fn workouts_tire_a_horse_by_how_hard_they_are() {
     let mut g = rich();
+    g.field[0].jumper = true;
     let name = g.field[0].name.clone();
     for w in Workout::ALL {
         g.field[0].fatigue = 0;

@@ -59,6 +59,8 @@ pub const ALL_VENUES: [Venue; 10] = [
 pub enum Surface {
     Turf,
     Dirt,
+    /// Over fences (障害), on the turf.
+    Jump,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -212,6 +214,7 @@ pub fn course_distances(venue: Venue, surface: Surface) -> &'static [u32] {
     use Surface::*;
     use Venue::*;
     match (venue, surface) {
+        (_, Jump) => &[2800, 3000, 3200, 3400, 3600, 4000, 4200],
         (Sapporo, Turf) => &[1200, 1500, 1800, 2000, 2600],
         (Sapporo, Dirt) => &[1000, 1700, 2400],
         (Hakodate, Turf) => &[1000, 1200, 1800, 2000, 2600],
@@ -242,6 +245,7 @@ pub fn course_distances(venue: Venue, surface: Surface) -> &'static [u32] {
 // Short names used only by the data tables below.
 const T: Surface = Surface::Turf;
 const D: Surface = Surface::Dirt;
+const J: Surface = Surface::Jump;
 const A2: AgeRule = AgeRule::Two;
 const A3: AgeRule = AgeRule::Three;
 const U3: AgeRule = AgeRule::ThreeUp;
@@ -348,6 +352,16 @@ fn race_rows() -> Vec<Row> {
         (34, Sonoda, D, 1700, U3, false, WS, G3, "播磨ダートステークス"),
         (40, Oi, D, 1200, U3, false, WS, G2, "湾岸スプリント"),
         (51, Oi, D, 2000, U3, false, WF, G1, "帝都ダート大賞典"),
+        // ---- over fences (障害重賞)
+        (16, Nakayama, J, 4200, U4, false, WF, G1, "春の大障害"),
+        (52, Nakayama, J, 4000, U3, false, WF, G1, "暮れの大障害"),
+        (10, Hanshin, J, 3000, U4, false, WS, G2, "阪神ジャンプステークス"),
+        (19, Tokyo, J, 3200, U4, false, WS, G2, "東京ハイジャンプ"),
+        (37, Nakayama, J, 3200, U3, false, WS, G2, "秋の障害ステークス"),
+        (6, Kokura, J, 2800, U4, false, WH, G3, "小倉冬ジャンプ"),
+        (20, Kyoto, J, 3000, U4, false, WS, G3, "京都ジャンプステークス"),
+        (30, Fukushima, J, 2800, U3, false, WH, G3, "夏の障害ハンデ"),
+        (42, Niigata, J, 2800, U3, false, WS, G3, "越後ジャンプステークス"),
         // ---- G2
         (2, Kyoto, T, 2400, U4, false, WH, G2, "新年ハンデキャップ"),
         (4, Nakayama, T, 2200, U4, false, WS, G2, "冬晴ゴールドカップ"),
@@ -482,6 +496,15 @@ fn race_rows() -> Vec<Row> {
 
 /// First-place prize (units of 10,000 yen). Money rises strictly with grade.
 fn prize_for(grade: Grade, age: AgeRule, fillies: bool, surface: Surface, week: u8) -> u32 {
+    if surface == Surface::Jump {
+        return match grade {
+            Grade::G1 => 6000,
+            Grade::G2 => 2500,
+            Grade::G3 => 1800,
+            Grade::Open => 1000,
+            _ => 700,
+        };
+    }
     let young = matches!(age, AgeRule::Two | AgeRule::Three);
     match grade {
         Grade::G1 if age == AgeRule::Two => 7000,
@@ -668,6 +691,57 @@ fn class_races(meetings: &[Meeting]) -> Vec<CalendarRace> {
     races
 }
 
+/// The courses with fences.
+const JUMP_COURSES: [Venue; 8] = [
+    Venue::Nakayama,
+    Venue::Tokyo,
+    Venue::Kyoto,
+    Venue::Hanshin,
+    Venue::Kokura,
+    Venue::Niigata,
+    Venue::Fukushima,
+    Venue::Chukyo,
+];
+/// Where a jump race goes on the card, clear of the flat races.
+const JUMP_MAIDEN_RACE: u8 = 2;
+const JUMP_OPEN_RACE: u8 = 4;
+
+/// The everyday races over fences: a maiden or an open each Saturday at the courses
+/// that have fences, turn about.
+fn jump_races(meetings: &[Meeting]) -> Vec<CalendarRace> {
+    let mut races = vec![];
+    for m in meetings.iter().filter(|m| JUMP_COURSES.contains(&m.venue)) {
+        for week in m.start_week..=m.end_week {
+            // the longest are kept for the big races
+            let distances = &course_distances(m.venue, Surface::Jump)[..5];
+            let distance = distances[week as usize % distances.len()];
+            let (grade, race_no, name) = if week % 2 == 0 {
+                (Grade::Maiden, JUMP_MAIDEN_RACE, "障害未勝利")
+            } else {
+                (Grade::Open, JUMP_OPEN_RACE, "障害オープン")
+            };
+            let age = AgeRule::ThreeUp;
+            races.push(CalendarRace {
+                week,
+                day: Day::Sat,
+                race_no,
+                venue: m.venue,
+                name: name.to_string(),
+                grade,
+                surface: Surface::Jump,
+                distance,
+                eligibility: Eligibility {
+                    age,
+                    fillies_only: false,
+                    weight: WeightRule::Fixed,
+                },
+                prize: prize_for(grade, age, false, Surface::Jump, week),
+            });
+        }
+    }
+    races
+}
+
 /// Where in the weekend card a race goes, in order of preference.
 fn slot_preferences(grade: Grade) -> &'static [(Day, u8)] {
     use Day::*;
@@ -713,7 +787,13 @@ pub fn fictional_calendar() -> Calendar {
         .into_iter()
         .map(
             |(week, venue, surface, distance, age, fillies_only, weight, grade, name)| {
-                let (day, race_no) = slot_preferences(grade)
+                // a stakes race over fences goes before the day's big race on the flat
+                let slots: &[(Day, u8)] = if surface == Surface::Jump {
+                    &[(Day::Sat, 9), (Day::Sun, 9)]
+                } else {
+                    slot_preferences(grade)
+                };
+                let (day, race_no) = slots
                     .iter()
                     .copied()
                     .find(|&(d, n)| taken.insert((week, d, venue, n)))
@@ -738,6 +818,7 @@ pub fn fictional_calendar() -> Calendar {
         )
         .collect();
     races.extend(class_races(&meetings));
+    races.extend(jump_races(&meetings));
     // in card order: week, day, course, race number
     races.sort_by_key(|r| (r.week, r.day as u8, r.venue as u8, r.race_no));
 
@@ -761,7 +842,10 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     fn cal() -> Calendar {
-        fictional_calendar()
+        // the jump races have rules of their own, tried with the game's
+        let mut c = fictional_calendar();
+        c.races.retain(|r| r.surface != Surface::Jump);
+        c
     }
 
     fn count(c: &Calendar, g: Grade) -> usize {

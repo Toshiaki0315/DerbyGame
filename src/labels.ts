@@ -138,6 +138,7 @@ export const ABILITY_LABEL: Record<Ability, string> = {
   power: "パワー",
   temper: "気性",
   dirt: "ダート適性",
+  jump: "飛越",
 };
 
 /** What a session of a workout changes, e.g. "スピード+2 パワー+2 気性-2". */

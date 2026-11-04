@@ -285,6 +285,24 @@ impl Game {
     /// The year's best horse, of the stable or the rivals: the most G1s, then the
     /// most money. Nobody wins it for doing nothing.
     pub(super) fn choose_horse_of_the_year(&mut self) {
+        // the stable's best over fences
+        let best_jumper = self
+            .field
+            .iter()
+            .filter(|h| h.year_jump_wins > 0)
+            .max_by_key(|h| h.year_jump_wins)
+            .map(|h| h.name.clone());
+        if let Some(horse) = best_jumper {
+            self.awards.push(Award {
+                year: self.year,
+                title: TITLE_BEST_JUMPER.to_string(),
+                horse,
+                mine: true,
+            });
+        }
+        for h in &mut self.field {
+            h.year_jump_wins = 0;
+        }
         let mine = self.field.iter().map(|h| {
             (
                 (h.career.year_g1, h.career.year_earnings),

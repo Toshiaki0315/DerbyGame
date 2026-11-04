@@ -1,4 +1,5 @@
 use crate::horse::Horse;
+use crate::rivals::{mix_seed, Rng};
 use serde::{Deserialize, Serialize};
 
 /// Seconds simulated per tick.
@@ -23,6 +24,29 @@ const EARLY_SHARE: f64 = 0.6;
 /// Late-stretch pace lost by each front-runner for every other one in the field.
 const DUEL_LOSS: f64 = 0.015;
 const MAX_DUEL_LOSS: f64 = 0.045;
+/// Chance of a horse pulling up on the flat (競走中止): very rare.
+const FLAT_STOP_CHANCE: f64 = 0.0005;
+/// However many come to grief, at least this many finish.
+const MIN_FINISHERS: usize = 3;
+/// How far through a race a horse may pull up, from and to.
+const STOP_FROM: f64 = 0.2;
+const STOP_TO: f64 = 0.9;
+/// Metres between fences (障害) in a jump race.
+const FENCE_GAP: f64 = 350.0;
+/// How much slower a jump race is run than the flat.
+const JUMP_PACE: f64 = 0.92;
+/// How many fences there are over a distance.
+pub fn fences_in(distance: f64) -> u32 {
+    (distance / FENCE_GAP).floor() as u32
+}
+
+/// Chance at a fence of a horse of 100 jumping ability going wrong, and of one of none.
+const FALL_BEST: f64 = 0.0005;
+const FALL_WORST: f64 = 0.003;
+/// Chance at a fence of a horse of no jumping ability blundering, and the metres it costs.
+const BLUNDER_WORST: f64 = 0.3;
+const BLUNDER_METRES: f64 = 6.0;
+
 /// Temperament (0-100) of a horse with nothing known about it.
 pub const NEUTRAL_TEMPER: f64 = 50.0;
 /// Chance a horse of no temperament at all pulls for its head (掛かる).
@@ -104,6 +128,8 @@ pub struct Traits {
     /// Temperament (気性), 0-100: a calm horse runs to form, a hot one is erratic.
     pub temper: f64,
     pub gear: Gear,
+    /// Jumping ability (飛越), in a jump race.
+    pub jump: Option<u32>,
 }
 
 impl Default for Traits {
@@ -112,6 +138,7 @@ impl Default for Traits {
             style: None,
             temper: NEUTRAL_TEMPER,
             gear: Gear::default(),
+            jump: None,
         }
     }
 }
@@ -132,6 +159,14 @@ pub struct Runner {
     /// Pulled for its head early on (掛かった).
     pub kakari: bool,
     pub gear: Gear,
+    /// Where it is to pull up, if it is (競走中止).
+    pub pulls_up_at: Option<f64>,
+    /// It has come to a stop and will not finish.
+    pub stopped: bool,
+    /// Jumping ability (飛越), in a jump race.
+    pub jump: Option<u32>,
+    /// Fences jumped so far.
+    pub fences: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -194,6 +229,13 @@ pub struct Race {
     ticks: u32,
     /// Runners whose style is 逃げ.
     front_runners: usize,
+    /// Luck kept apart from the race's own, so that a race nobody comes to grief in is
+    /// run as it would be without it.
+    fate: Rng,
+    /// How many more may still come to grief.
+    may_stop: usize,
+    /// Mistakes at fences: the tick and the runner.
+    pub blunders: Vec<(u32, usize)>,
 }
 
 impl Race {
@@ -205,6 +247,17 @@ impl Race {
 
     /// A race whose runners have running styles and temperaments (in runner order).
     pub fn with_traits(horses: Vec<Horse>, traits: &[Traits], distance: f64, seed: u64) -> Self {
+        Self::with_stopping(horses, traits, distance, seed, FLAT_STOP_CHANCE)
+    }
+
+    /// [`Race::with_traits`] with the chance of a horse pulling up given.
+    pub fn with_stopping(
+        horses: Vec<Horse>,
+        traits: &[Traits],
+        distance: f64,
+        seed: u64,
+        stop_chance: f64,
+    ) -> Self {
         let runners = horses
             .into_iter()
             .zip(traits)
@@ -219,13 +272,21 @@ impl Race {
                 temper: t.temper,
                 kakari: false,
                 gear: t.gear,
+                pulls_up_at: None,
+                stopped: false,
+                jump: t.jump,
+                fences: 0,
             })
             .collect::<Vec<Runner>>();
         let front_runners = runners
             .iter()
             .filter(|r| r.style == Some(Style::Nige))
             .count();
+        let may_stop = runners.len().saturating_sub(MIN_FINISHERS);
         let mut race = Self {
+            fate: Rng::new(mix_seed(&[seed, 0xFA11])),
+            may_stop,
+            blunders: vec![],
             front_runners,
             runners,
             distance,
@@ -246,6 +307,11 @@ impl Race {
             let chance = Self::kakari_chance_with(temper, gear);
             if chance > 0.0 {
                 race.runners[i].kakari = race.next_f64() < chance;
+            }
+            if race.may_stop > 0 && race.fate.next_f64() < stop_chance {
+                let share = STOP_FROM + race.fate.next_f64() * (STOP_TO - STOP_FROM);
+                race.runners[i].pulls_up_at = Some(distance * share);
+                race.may_stop -= 1;
             }
         }
         race
@@ -319,7 +385,51 @@ impl Race {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.runners.iter().all(|r| r.finish_time.is_some())
+        self.runners
+            .iter()
+            .all(|r| r.finish_time.is_some() || r.stopped)
+    }
+
+    /// The horses that pulled up or fell (競走中止), in runner order.
+    #[cfg(test)]
+    pub fn stopped(&self) -> Vec<String> {
+        self.runners
+            .iter()
+            .filter(|r| r.stopped)
+            .map(|r| r.name.clone())
+            .collect()
+    }
+
+    /// What happens to a runner on its way to a new position: it may have pulled up
+    /// (`None`), or jumped a fence, well or badly.
+    fn on_its_way(&mut self, i: usize, new_pos: f64) -> Option<f64> {
+        let mut pos = new_pos;
+        if self.runners[i].jump.is_some() {
+            let jump = self.runners[i].jump.unwrap_or(0).min(100) as f64 / 100.0;
+            let fences = fences_in(self.distance);
+            let gap = self.distance / (fences + 1) as f64;
+            while self.runners[i].fences < fences
+                && new_pos >= gap * (self.runners[i].fences + 1) as f64
+            {
+                self.runners[i].fences += 1;
+                let fall = FALL_WORST + (FALL_BEST - FALL_WORST) * jump;
+                if self.may_stop > 0 && self.fate.next_f64() < fall {
+                    self.may_stop -= 1;
+                    self.runners[i].pulls_up_at = Some(gap * self.runners[i].fences as f64);
+                } else if self.fate.next_f64() < BLUNDER_WORST * (1.0 - jump) {
+                    pos -= BLUNDER_METRES;
+                    self.blunders.push((self.ticks, i));
+                }
+            }
+        }
+        if let Some(at) = self.runners[i].pulls_up_at {
+            if pos >= at {
+                self.runners[i].position = at;
+                self.runners[i].stopped = true;
+                return None;
+            }
+        }
+        Some(pos)
     }
 
     pub fn tick(&mut self) {
@@ -329,7 +439,7 @@ impl Race {
         let front_runners = self.front_runners;
         let distance = self.distance;
         for i in 0..self.runners.len() {
-            if self.runners[i].finish_time.is_some() {
+            if self.runners[i].finish_time.is_some() || self.runners[i].stopped {
                 continue;
             }
             let noise = 0.95 + self.next_f64() * 0.10;
@@ -340,9 +450,13 @@ impl Race {
                     * noise
                     * Self::tactics(r, distance, front_runners),
                 distance,
-            );
+            ) * if r.jump.is_some() { JUMP_PACE } else { 1.0 };
             let step = velocity * TICK_SECONDS;
-            let new_pos = r.position + step;
+            let before = r.position;
+            let Some(new_pos) = self.on_its_way(i, before + step) else {
+                continue;
+            };
+            let r = &mut self.runners[i];
             if new_pos >= self.distance {
                 let frac = (self.distance - r.position) / step;
                 r.finish_time = Some(start + frac * TICK_SECONDS);
@@ -544,6 +658,7 @@ mod tests {
 
     fn styled(style: Option<Style>, temper: f64) -> Traits {
         Traits {
+            jump: None,
             style,
             temper,
             gear: Gear::default(),
@@ -689,7 +804,8 @@ mod tests {
             let horses: Vec<Horse> = (0..18)
                 .map(|i| Horse::new(&format!("H{i}"), 60 + i * 25 / 17, 90))
                 .collect();
-            let mut race = Race::with_traits(horses, &[Traits::default(); 18], distance, seed + 1);
+            let mut race =
+                Race::with_stopping(horses, &[Traits::default(); 18], distance, seed + 1, 0.0);
             race.run_to_finish();
             let results = race.results();
             win += results[0].finish_time;
@@ -806,6 +922,7 @@ mod tests {
 
     fn geared(temper: f64, menko: bool, shadow_roll: bool) -> Traits {
         Traits {
+            jump: None,
             style: None,
             temper,
             gear: Gear {
@@ -943,6 +1060,7 @@ mod tests {
 
     fn blinkered(temper: f64, blinkers: bool) -> Traits {
         Traits {
+            jump: None,
             style: None,
             temper,
             gear: Gear {
@@ -981,5 +1099,153 @@ mod tests {
             ..Gear::default()
         };
         assert!(Race::kakari_chance_with(30.0, both) < Race::kakari_chance_with(30.0, keen));
+    }
+
+    fn plain(n: usize) -> Vec<Horse> {
+        (0..n)
+            .map(|i| Horse::new(&format!("H{i}"), 70, 70))
+            .collect()
+    }
+
+    /// Runs races until one has someone pull up, under a certain chance of it.
+    fn with_stoppage(chance: f64) -> Race {
+        (0..2000u64)
+            .map(|seed| {
+                let traits = vec![Traits::default(); 8];
+                let mut race = Race::with_stopping(plain(8), &traits, 1600.0, seed, chance);
+                race.run_to_finish();
+                race
+            })
+            .find(|r| !r.stopped().is_empty())
+            .expect("nobody ever pulled up")
+    }
+
+    #[test]
+    fn a_horse_can_pull_up_and_does_not_finish() {
+        let race = with_stoppage(0.05);
+        assert!(race.is_finished());
+        let stopped = race.stopped();
+        let results = race.results();
+        assert_eq!(results.len() + stopped.len(), 8);
+        for name in &stopped {
+            assert!(results.iter().all(|r| &r.name != name));
+            let r = race.runners.iter().find(|r| &r.name == name).unwrap();
+            assert!(r.position < 1600.0);
+            assert!(r.finish_time.is_none());
+        }
+    }
+
+    #[test]
+    fn a_race_always_has_three_to_finish() {
+        for seed in 0..200u64 {
+            let traits = vec![Traits::default(); 6];
+            let mut race = Race::with_stopping(plain(6), &traits, 1600.0, seed, 0.9);
+            race.run_to_finish();
+            assert!(race.results().len() >= 3, "seed {seed}");
+            assert!(race.is_finished());
+        }
+    }
+
+    #[test]
+    fn pulling_up_on_the_flat_is_very_rare() {
+        let (mut stopped, mut runners) = (0, 0);
+        for seed in 0..3000u64 {
+            let traits = vec![Traits::default(); 10];
+            let race = Race::with_traits(plain(10), &traits, 1600.0, seed);
+            stopped += race
+                .runners
+                .iter()
+                .filter(|r| r.pulls_up_at.is_some())
+                .count();
+            runners += 10;
+        }
+        assert!(stopped > 0, "never in {runners}");
+        assert!(stopped * 500 < runners, "{stopped} of {runners}");
+    }
+
+    #[test]
+    fn nobody_pulling_up_leaves_the_race_as_it_was() {
+        // the chance of it is drawn apart from the race's own luck
+        let run = |chance: f64| {
+            let traits = vec![Traits::default(); 8];
+            let mut race = Race::with_stopping(plain(8), &traits, 1600.0, 5, chance);
+            race.run_to_finish();
+            race.results()
+        };
+        assert_eq!(run(0.0), run(0.0));
+        let some = run(0.0).iter().map(|r| r.name.clone()).collect::<Vec<_>>();
+        assert_eq!(some.len(), 8);
+    }
+
+    fn jumpers(jump: u32) -> Vec<Traits> {
+        vec![
+            Traits {
+                jump: Some(jump),
+                ..Traits::default()
+            };
+            8
+        ]
+    }
+
+    fn jump_races(jump: u32, runs: u64) -> Vec<Race> {
+        (0..runs)
+            .map(|seed| {
+                let mut race = Race::with_stopping(plain(8), &jumpers(jump), 3200.0, seed, 0.0);
+                race.run_to_finish();
+                race
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_good_jumper_falls_less_often_than_a_poor_one() {
+        let falls = |jump| {
+            jump_races(jump, 400)
+                .iter()
+                .map(|r| r.stopped().len())
+                .sum::<usize>()
+        };
+        let (good, poor) = (falls(100), falls(10));
+        assert!(good < poor, "{good} against {poor}");
+        // one or two in a hundred runners, for an ordinary jumper
+        let ordinary = falls(60) as f64 / (400.0 * 8.0);
+        assert!((0.005..0.04).contains(&ordinary), "{ordinary}");
+    }
+
+    #[test]
+    fn a_good_jumper_blunders_less_and_a_blunder_costs_ground() {
+        let blunders = |jump| {
+            jump_races(jump, 100)
+                .iter()
+                .map(|r| r.blunders.len())
+                .sum::<usize>()
+        };
+        assert_eq!(blunders(100), 0);
+        assert!(blunders(20) > blunders(70));
+        let time = |jump| {
+            jump_races(jump, 100)
+                .iter()
+                .map(|r| r.results()[0].finish_time)
+                .sum::<f64>()
+        };
+        assert!(time(100) < time(20));
+    }
+
+    #[test]
+    fn a_jump_race_is_run_slower_than_the_flat() {
+        let time = |traits: &[Traits]| {
+            let mut race = Race::with_stopping(plain(8), traits, 3200.0, 3, 0.0);
+            race.run_to_finish();
+            race.results()[0].finish_time
+        };
+        assert!(time(&jumpers(100)) > time(&[Traits::default(); 8]));
+    }
+
+    #[test]
+    fn a_flat_race_has_no_fences() {
+        let mut race = Race::with_stopping(plain(8), &[Traits::default(); 8], 3200.0, 3, 0.0);
+        race.run_to_finish();
+        assert!(race.blunders.is_empty());
+        assert!(race.runners.iter().all(|r| r.fences == 0));
     }
 }

@@ -17,6 +17,8 @@ interface Props {
   label?: string;
   /** Which course's own line this is, if it is one. */
   shapeName?: string;
+  /** How many fences there are in the race. */
+  fences?: number;
 }
 
 export const MAP_WIDTH = 300;
@@ -32,7 +34,7 @@ const LANES_ACROSS = 4;
 const LABEL_INSIDE = -18;
 
 /** The course seen from above, with a dot for each runner. */
-export default function CourseMap({ runners, distance, shape, shapeName, label = "コース図" }: Props) {
+export default function CourseMap({ runners, distance, shape, shapeName, fences = 0, label = "コース図" }: Props) {
   const { lap, straight, turn, afterGoal, straightCourse } = shape;
   const spot = distance === undefined ? null : gateSpot(distance, shape);
   const gate = distance === undefined ? null : gatePoint(distance, shape);
@@ -83,6 +85,11 @@ export default function CourseMap({ runners, distance, shape, shapeName, label =
           </text>
         </>
       )}
+      {distance !== undefined &&
+        Array.from({ length: fences }, (_, i) => {
+          const p = ovalPoint(((i + 1) * distance) / (fences + 1), shape);
+          return <circle key={`fence-${i}`} className="map-fence" cx={p.x} cy={p.y} r={2} aria-label="障害" />;
+        })}
       {bends.map(([label, toGo]) => {
         const p = ovalPoint(toGo, shape, LABEL_INSIDE);
         return (

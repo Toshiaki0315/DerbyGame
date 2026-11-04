@@ -14,6 +14,7 @@ fn runner_spec(mine: &[&str], all: &[&str]) -> RaceSpec {
             .iter()
             .map(|n| {
                 let mut e = crate::rivals::Entrant {
+                    jump: 0,
                     name: n.to_string(),
                     speed: 70,
                     stamina: 70,

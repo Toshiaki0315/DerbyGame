@@ -71,6 +71,14 @@ pub enum GameError {
     TrainerFull,
     /// Gelding a horse that has been already.
     AlreadyGelded,
+    /// A horse that has not gone over to jumps.
+    NotJumper,
+    /// Going over to jumps a second time.
+    AlreadyJumper,
+    /// Not jumping well enough for the exam.
+    JumpTooLow,
+    /// The exam a second time.
+    AlreadyLicensed,
 }
 
 impl std::fmt::Display for GameError {
@@ -111,6 +119,10 @@ impl std::fmt::Display for GameError {
             GameError::UnknownTrainer => "その調教師はいません",
             GameError::TrainerFull => "その調教師の厩舎は満員です",
             GameError::AlreadyGelded => "その馬はすでに去勢しています",
+            GameError::NotJumper => "その馬は障害馬ではありません",
+            GameError::AlreadyJumper => "その馬はすでに障害馬です",
+            GameError::JumpTooLow => "飛越が足りません",
+            GameError::AlreadyLicensed => "その馬はすでに障害試験に合格しています",
             GameError::NotForSale => "その馬は販売されていません",
             GameError::TooTired => "疲労がたまっています。休ませてください",
             GameError::Resting => "その馬は今週休養中です",
@@ -160,6 +172,8 @@ pub struct PrizeWon {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RoundOutcome {
     pub results: Vec<RaceResult>,
+    /// Those who started and did not finish (競走中止).
+    pub stopped: Vec<String>,
     /// Runner positions (field order) after each second of the race.
     pub frames: Vec<Vec<f64>>,
     /// Live commentary, each line tied to the replay frame it appears at.
@@ -279,6 +293,9 @@ pub struct GameState {
     pub auto_keep_money: u32,
     /// What gelding a colt costs.
     pub gelding_cost: u32,
+    /// The jumping ability the exam asks for, and what it costs.
+    pub jump_exam_level: u32,
+    pub jump_exam_cost: u32,
     /// This year's leading tables so far.
     pub leading: Leading,
     /// Who led the years gone by.
@@ -301,6 +318,8 @@ pub struct BloodTraits {
     pub coat_color: String,
     pub growth_type: String,
     pub peak_age: u8,
+    /// What it has in it over fences.
+    pub jump: f64,
     pub aptitude_min: u32,
     pub aptitude_max: u32,
     pub running_style: String,
@@ -660,6 +679,10 @@ pub struct HorseEntry {
     /// The order given to its jockey (作戦), if any.
     pub order: Option<Style>,
     pub gelded: bool,
+    pub jumper: bool,
+    pub jump: u32,
+    pub jump_license: bool,
+    pub jump_wins: u32,
     pub name: String,
     pub speed: u32,
     pub stamina: u32,
@@ -784,6 +807,8 @@ pub enum Workout {
     Walk,
     /// ダートコース: work on dirt teaches it the surface.
     Dirt,
+    /// 障害練習: schooling over fences, for a horse gone over to jumps.
+    Jump,
 }
 
 /// An ability a workout can change.
@@ -796,6 +821,8 @@ pub enum Ability {
     Temper,
     /// Progress towards the next step of dirt aptitude.
     Dirt,
+    /// Jumping ability.
+    Jump,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -818,13 +845,14 @@ pub struct WorkoutInfo {
 }
 
 impl Workout {
-    pub const ALL: [Workout; 6] = [
+    pub const ALL: [Workout; 7] = [
         Workout::Wood,
         Workout::Hill,
         Workout::Pool,
         Workout::Pair,
         Workout::Walk,
         Workout::Dirt,
+        Workout::Jump,
     ];
 
     pub fn name(self) -> &'static str {
@@ -835,6 +863,7 @@ impl Workout {
             Workout::Pool => "プール",
             Workout::Walk => "曳き運動",
             Workout::Dirt => "ダートコース",
+            Workout::Jump => "障害練習",
         }
     }
 
@@ -846,6 +875,7 @@ impl Workout {
             Workout::Pool => "脚に負担をかけずにスタミナをつけ、リラックスさせます。",
             Workout::Walk => "人が曳いて歩かせ、気性を落ち着かせます。",
             Workout::Dirt => "ダートを走らせて砂に慣れさせます。3回で適性が1段階上がります。",
+            Workout::Jump => "障害を飛ばせて飛越を鍛えます。障害馬だけが行えます。",
         }
     }
 
@@ -859,12 +889,14 @@ impl Workout {
             Workout::Pool => vec![g(Stamina, 3), g(Temper, 1)],
             Workout::Walk => vec![g(Temper, 3)],
             Workout::Dirt => vec![g(Dirt, 1), g(Power, 1)],
+            Workout::Jump => vec![g(Jump, 4), g(Power, 1)],
         }
     }
 
     /// Fatigue a session adds (疲労度).
     pub fn fatigue(self) -> u32 {
         match self {
+            Workout::Jump => 10,
             Workout::Hill => 10,
             Workout::Wood => 8,
             Workout::Pair => 12,
@@ -917,6 +949,8 @@ pub struct RaceSpec {
 pub struct CardEntry {
     pub name: String,
     pub gelded: bool,
+    /// Jumping ability, in a jump race.
+    pub jump: u32,
     /// What the season is doing to it this week (夏負け and so on).
     pub season: Option<String>,
     pub speed: u32,
@@ -978,6 +1012,8 @@ pub struct RaceCard {
     pub track: TrackCondition,
     /// The weather on the day (天候).
     pub weather: Weather,
+    /// How many fences there are (none on the flat).
+    pub fences: u32,
     pub entrants: Vec<CardEntry>,
     /// Every horse in the stable: whether it may run in this race and whether it is entered.
     pub my_horses: Vec<MyHorse>,
@@ -1144,6 +1180,7 @@ pub(super) fn blood_traits(r: BloodHorse) -> BloodTraits {
         gen: r.gen,
         coat_color: r.coat_color,
         growth_type: r.growth_type,
+        jump: r.jump,
         peak_age: r.peak_age,
         aptitude_min: r.aptitude_min,
         aptitude_max: r.aptitude_max,
@@ -1238,6 +1275,20 @@ pub struct StableHorse {
     pub(super) trainings: u32,
     /// ダートコース sessions towards the next step of dirt aptitude.
     pub(super) dirt_progress: u8,
+    /// Gone over to jumps (障害転向).
+    #[serde(default)]
+    pub(super) jumper: bool,
+    /// Jumping ability (飛越), 0-100.
+    #[serde(default)]
+    pub(super) jump: u32,
+    /// Has passed the jump exam (障害試験).
+    #[serde(default)]
+    pub(super) jump_license: bool,
+    /// Wins over fences, which count apart from those on the flat.
+    #[serde(default)]
+    pub(super) jump_wins: u32,
+    #[serde(default)]
+    pub(super) year_jump_wins: u32,
     /// Racing record (戦績).
     pub(super) record: RaceRecord,
     /// What the horse has done on the track.
@@ -1284,6 +1335,11 @@ impl StableHorse {
             condition: Condition::Normal,
             trainings: 0,
             dirt_progress: 0,
+            jumper: false,
+            jump: 0,
+            jump_license: false,
+            jump_wins: 0,
+            year_jump_wins: 0,
             record: default_record(name),
             career: Career::default(),
             gear: Gear::default(),

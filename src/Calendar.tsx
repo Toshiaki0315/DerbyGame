@@ -6,6 +6,7 @@ export type Venue =
   | "nakayama" | "chukyo" | "kyoto" | "hanshin" | "kokura"
   | "oi" | "kawasaki" | "funabashi" | "sonoda";
 export type Grade = "g1" | "g2" | "g3" | "listed" | "open" | "win3" | "win2" | "win1" | "maiden" | "debut";
+export type Surface = "turf" | "dirt" | "jump";
 export type AgeRule = "two" | "three" | "three_up" | "four_up";
 export type WeightRule = "age" | "fixed" | "allowance" | "handicap";
 
@@ -23,7 +24,7 @@ export interface CalendarRace {
   venue: Venue;
   name: string;
   grade: Grade;
-  surface: "turf" | "dirt";
+  surface: Surface;
   distance: number;
   eligibility: { age: AgeRule; fillies_only: boolean; weight: WeightRule };
   prize: number;
@@ -43,10 +44,16 @@ export const VENUE_LABEL: Record<Venue, string> = {
 
 const LOCAL_VENUES: Venue[] = ["oi", "kawasaki", "funabashi", "sonoda"];
 const LOCAL_GRADE: Partial<Record<Grade, string>> = { g1: "JpnI", g2: "JpnII", g3: "JpnIII" };
+const JUMP_GRADE: Partial<Record<Grade, string>> = { g1: "J・G1", g2: "J・G2", g3: "J・G3" };
 
 /** A race's grade as it is written: races on the local tracks are Jpn grades. */
-export const gradeLabel = (r: { grade: Grade; venue: Venue }) =>
-  (LOCAL_VENUES.includes(r.venue) && LOCAL_GRADE[r.grade]) || GRADE_LABEL[r.grade];
+export const gradeLabel = (r: { grade: Grade; venue: Venue; surface?: Surface }) =>
+  (r.surface === "jump" && JUMP_GRADE[r.grade]) || (LOCAL_VENUES.includes(r.venue) && LOCAL_GRADE[r.grade]) || GRADE_LABEL[r.grade];
+
+/** Over fences a horse needs its licence, and only its wins over fences count. */
+export const mayRunOver = (r: { grade: Grade }, h: { jump_license?: boolean; jump_wins?: number }) =>
+  !!h.jump_license &&
+  (r.grade === "maiden" ? (h.jump_wins ?? 0) === 0 : ["g1", "g2", "g3"].includes(r.grade) ? (h.jump_wins ?? 0) >= 1 : true);
 export const GRADE_LABEL: Record<Grade, string> = {
   g1: "G1", g2: "G2", g3: "G3", listed: "L", open: "OP",
   win3: "3勝", win2: "2勝", win1: "1勝", maiden: "未勝利", debut: "新馬",
@@ -73,7 +80,7 @@ export const ageAllows = (r: CalendarRace, age: number, female: boolean) => {
 type GradeFilter = Grade | "all" | "stakes" | "class";
 const AGE_LABEL: Record<AgeRule, string> = { two: "2歳", three: "3歳", three_up: "3歳以上", four_up: "4歳以上" };
 const WEIGHT_LABEL: Record<WeightRule, string> = { age: "馬齢", fixed: "定量", allowance: "別定", handicap: "ハンデ" };
-export const SURFACE_LABEL = { turf: "芝", dirt: "ダート" } as const;
+export const SURFACE_LABEL = { turf: "芝", dirt: "ダート", jump: "障害" } as const;
 const DAY_LABEL = { sat: "土", sun: "日" } as const;
 
 /** Month the given week (week 1 = first week of January) mostly falls in. */

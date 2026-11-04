@@ -14,6 +14,9 @@ impl Game {
             return Err(GameError::GameOver);
         }
         let i = self.slot(name)?;
+        if workout == Workout::Jump && !self.field[i].jumper {
+            return Err(GameError::NotJumper);
+        }
         let cost = session_cost(self.field[i].trainings);
         let gains = workout.gains();
         if self.field[i].away.is_some() {
@@ -48,6 +51,7 @@ impl Game {
             Ability::Power => self.field[i].power >= MAX_STAT,
             Ability::Temper => self.field[i].temper >= MAX_STAT,
             Ability::Dirt => self.field[i].dirt >= MAX_DIRT,
+            Ability::Jump => self.field[i].jump >= self.jump_ceiling(i),
         }
     }
 
@@ -69,6 +73,10 @@ impl Game {
             Ability::Stamina => self.field[i].stamina = add(self.field[i].stamina),
             Ability::Power => self.field[i].power = add(self.field[i].power),
             Ability::Temper => self.field[i].temper = add(self.field[i].temper),
+            Ability::Jump => {
+                let ceiling = self.jump_ceiling(i);
+                self.field[i].jump = (self.field[i].jump + gain.amount.max(0) as u32).min(ceiling);
+            }
             Ability::Dirt => {
                 if self.field[i].dirt < MAX_DIRT {
                     self.field[i].dirt_progress += gain.amount as u8;
@@ -99,6 +107,20 @@ impl Game {
         if self.field[i].temper < AUTO_CALM_TEMPER {
             return Some(AutoPlan::Work(Workout::Walk));
         }
+        // a jumper is schooled until it can run over fences
+        if self.field[i].jumper
+            && self.field[i].jump < JUMP_EXAM_LEVEL
+            && !self.at_limit(i, Ability::Jump)
+            && self.field[i].fatigue + Workout::Jump.fatigue() <= t.training.work_ceiling()
+        {
+            return Some(AutoPlan::Work(Workout::Jump));
+        }
+        if self.field[i].jumper
+            && !self.field[i].jump_license
+            && self.field[i].jump >= JUMP_EXAM_LEVEL
+        {
+            return None;
+        }
         let (mut speed, mut stamina, power) = (
             self.field[i].speed as i64,
             self.field[i].stamina as i64,
@@ -128,6 +150,14 @@ impl Game {
                 continue;
             }
             let name = self.field[i].name.clone();
+            if self.field[i].jumper
+                && !self.field[i].jump_license
+                && self.field[i].jump >= JUMP_EXAM_LEVEL
+                && JUMP_EXAM_COST + self.auto_keep() <= self.money
+                && self.take_jump_exam(&name).is_ok()
+            {
+                self.news.push(format!("{name}が障害試験に合格しました。"));
+            }
             for _ in 0..self.trainer_of_horse(i).training.sessions() {
                 match self.auto_plan(i) {
                     Some(AutoPlan::Pasture) => {

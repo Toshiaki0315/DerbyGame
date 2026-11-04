@@ -75,11 +75,11 @@ impl Game {
                 r.week == week
                     && r.eligibility
                         .allows(self.field[i].age, self.field[i].sex == Sex::Female)
-                    && r.grade
-                        .admits(self.field[i].record.starts, self.field[i].record.wins)
-                    && form::distance_effect(r.distance, e.apt_min, e.apt_max).fit
-                        == form::DistanceFit::Fit
-                    && (r.surface == Surface::Turf || self.field[i].dirt >= 0)
+                    && self.admitted(i, r)
+                    && (r.surface == Surface::Jump
+                        || form::distance_effect(r.distance, e.apt_min, e.apt_max).fit
+                            == form::DistanceFit::Fit)
+                    && (r.surface != Surface::Dirt || self.field[i].dirt >= 0)
                     && !self.short_of_earnings(i, r)
                     && !over
                         .is_some_and(|o| (o.day, o.venue, o.race_no) == (r.day, r.venue, r.race_no))
@@ -135,6 +135,15 @@ impl Game {
                     .any(|(t, names)| same(t, r) && names.len() >= MAX_OWN_ENTRIES)
             })
             .collect();
+        // a horse that has gone over to jumps goes over fences when it can
+        let over_fences = open
+            .iter()
+            .rev()
+            .filter(|r| r.surface == Surface::Jump)
+            .max_by_key(|r| r.prize);
+        if let Some(r) = over_fences {
+            return Some(r.clone());
+        }
         let within = |r: &&CalendarRace| rivals::speed_centre(r.grade) as f64 <= reach;
         // among equal prizes, the course that suits the horse best
         let richest = |r: &CalendarRace| (r.prize, (self.fit_at(i, r).percent * 100.0) as i64);
@@ -233,6 +242,7 @@ impl Game {
             let surface = match race.surface {
                 Surface::Turf => "芝",
                 Surface::Dirt => "ダート",
+                Surface::Jump => "障害",
             };
             for (name, rank) in &mine {
                 let won = prizes.iter().find(|p| &p.name == name);
@@ -250,6 +260,12 @@ impl Game {
                 horse: mine
                     .iter()
                     .map(|(name, rank)| format!("{name} {rank}着"))
+                    .chain(
+                        Self::did_not_finish(&spec, &results)
+                            .into_iter()
+                            .filter(|n| spec.entrants.iter().any(|e| e.mine && &e.name == n))
+                            .map(|n| format!("{n} 競走中止")),
+                    )
                     .collect::<Vec<_>>()
                     .join("、"),
                 horses: mine.iter().map(|(name, _)| name.clone()).collect(),

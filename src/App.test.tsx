@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import App from "./App";
-import { gradeLabel } from "./Calendar";
+import { gradeLabel, mayRunOver } from "./Calendar";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 import { invoke } from "@tauri-apps/api/core";
@@ -2823,6 +2823,117 @@ describe("App", () => {
       await ready();
       fireEvent.click(screen.getByRole("tab", { name: "繁殖" }));
       expect(await screen.findByText("仔の成長型の見込み: 早熟20% / 普通60% / 晩成20%")).toBeTruthy();
+    });
+  });
+
+  describe("over fences", () => {
+    const trainers = [{ id: 0, name: "鬼塚", region: "美浦", training: "標準", distance: "万能", rotation: "標準", aim: "バランス", description: "" }];
+    const horse = (extra: Record<string, unknown>) => ({ ...state.field[0], trainer: 0, sale_price: 100, age: 4, ...extra });
+    const game = (h: Record<string, unknown>) => ({ ...state, trainers, stable_capacity: 10, jump_exam_level: 30, jump_exam_cost: 100, field: [h] });
+
+    it("offers a horse the chance to go over to jumps", async () => {
+      const go = vi.fn(() => game(horse({ jumper: true, jump: 10 })));
+      mockBackend(undefined, undefined, undefined, { get_game_state: game(horse({})), go_over_to_jumps: go });
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
+      fireEvent.click(screen.getByRole("button", { name: "Fastを障害転向" }));
+      await waitFor(() => expect(go).toHaveBeenCalledWith({ name: "Fast" }));
+    });
+
+    it("lets a jumper sit the exam once it jumps well enough", async () => {
+      const exam = vi.fn(() => game(horse({ jumper: true, jump: 30, jump_license: true })));
+      mockBackend(undefined, undefined, undefined, { get_game_state: game(horse({ jumper: true, jump: 30 })), take_jump_exam: exam });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
+      expect(screen.queryByRole("button", { name: "Fastを障害転向" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Fastの障害試験" }));
+      await waitFor(() => expect(exam).toHaveBeenCalledWith({ name: "Fast" }));
+    });
+
+    it("holds the exam back until the horse jumps well enough", async () => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: game(horse({ jumper: true, jump: 20 })) });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
+      expect((screen.getByRole("button", { name: "Fastの障害試験" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("shows schooling only for a jumper, with its jumping", async () => {
+      const workouts = [
+        { workout: "wood", name: "ウッドコース追い", description: "", gains: [{ ability: "speed", amount: 3 }], fatigue: 8 },
+        { workout: "jump", name: "障害練習", description: "", gains: [{ ability: "jump", amount: 4 }], fatigue: 10 },
+      ];
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...game(horse({})), workouts } });
+      const { unmount } = render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "育成" }));
+      const menu = () => within(screen.getByLabelText("Fastの調教メニュー")).queryByRole("option", { name: "障害練習" });
+      expect(menu()).toBeNull();
+      unmount();
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...game(horse({ jumper: true, jump: 25 })), workouts } });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "育成" }));
+      expect(menu()).toBeTruthy();
+      expect(screen.getByLabelText("Fastの飛越").textContent).toBe("飛越 25");
+    });
+
+    it("shows the fences and each runner's jumping on a jump race's card", async () => {
+      const entrants = freeCard.entrants.map((e) => ({ ...e, jump: 55 }));
+      const course = { name: "中山", turn: "右回り", lap: 1800, straight: 300 };
+      mockBackend(undefined, undefined, undefined, { get_race_card: { ...freeCard, course, surface: "jump", distance: 3200, fences: 9, entrants } });
+      render(<App />);
+      await ready();
+      await waitFor(() => expect(screen.getByRole("columnheader", { name: "飛越" })).toBeTruthy());
+      expect(screen.getAllByText("55").length).toBe(entrants.length);
+      expect(screen.getByLabelText("コース情報").textContent).toContain("障害3200m");
+      expect(screen.getByLabelText("コース情報").textContent).toContain("障害9回");
+    });
+
+    it("leaves the jumping out on the flat", async () => {
+      mockBackend();
+      render(<App />);
+      await ready();
+      expect(screen.queryByRole("columnheader", { name: "飛越" })).toBeNull();
+    });
+
+    it("lists those who did not finish with the result", async () => {
+      const race = {
+        results: [{ rank: 1, name: "Fast", finish_time: 60 }, { rank: 2, name: "Third", finish_time: 60.5 }],
+        stopped: ["Slow"],
+        frames: [[500, 400, 300], [1000, 500, 900], [1000, 500, 1000]],
+        commentary: [],
+        runners: ["Fast", "Slow", "Third"],
+        race_name: null,
+        distance: 1000,
+        won: false,
+        payout: 0,
+        tickets: [],
+        prizes: [],
+        prize_total: 0,
+        money: 1000,
+      };
+      mockBackend(undefined, undefined, undefined, { watch_race: race });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByText("レース開始"));
+      fireEvent.click(await screen.findByText("スキップ"));
+      await waitFor(() => expect(screen.getByText("競走中止: Slow")).toBeTruthy());
+    });
+
+    it("writes the grades over fences as J-G", () => {
+      expect(gradeLabel({ grade: "g1", venue: "nakayama", surface: "jump" })).toBe("J・G1");
+      expect(gradeLabel({ grade: "g3", venue: "kokura", surface: "jump" })).toBe("J・G3");
+      expect(gradeLabel({ grade: "maiden", venue: "kokura", surface: "jump" })).toBe("未勝利");
+    });
+
+    it("lets only a licensed jumper count on a jump race", async () => {
+      const r = { surface: "jump", grade: "open", eligibility: { age: "three_up", fillies_only: false, weight: "fixed" } };
+      expect(mayRunOver(r as never, { jump_license: true } as never)).toBe(true);
+      expect(mayRunOver(r as never, {} as never)).toBe(false);
     });
   });
 

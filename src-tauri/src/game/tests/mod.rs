@@ -16,6 +16,7 @@ mod growth;
 mod honours;
 mod injuries;
 mod jockeys;
+mod jumps;
 mod leading;
 mod money;
 mod prizes;
@@ -183,6 +184,7 @@ fn key_of(r: &crate::calendar::CalendarRace) -> RaceKey {
 
 fn runner(name: &str, power: u32, dirt: i8) -> crate::rivals::Entrant {
     crate::rivals::Entrant {
+        jump: 0,
         name: name.into(),
         speed: 78,
         stamina: 78,

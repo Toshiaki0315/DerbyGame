@@ -56,7 +56,11 @@ fn a_win_for_the_stable_counts_for_its_jockey_trainer_and_sire() {
     let r = calendar::shared()
         .races
         .iter()
-        .find(|r| r.grade == Grade::Open && r.eligibility.age == AgeRule::ThreeUp)
+        .find(|r| {
+            r.grade == Grade::Open
+                && r.surface != Surface::Jump
+                && r.eligibility.age == AgeRule::ThreeUp
+        })
         .unwrap()
         .clone();
     g.week = r.week;

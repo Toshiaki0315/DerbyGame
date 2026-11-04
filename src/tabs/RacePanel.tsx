@@ -9,6 +9,9 @@ import { finishView, gateSpot } from "../raceShow";
 import { AppView } from "../view";
 import { HorseIcon } from "../widgets";
 
+/** Fences are set on the turf course, so that is the shape it has. */
+const onTrack = (s: "turf" | "dirt" | "jump") => (s === "jump" ? "turf" : s);
+
 export default function RacePanel({ app }: { app: AppView }) {
   const { card, finished, game, laneCoats, laneNames, live, net, outcome, racing, ranCard, shown, trackDistance } = app;
   // the race that was run, once one has been; until then the one chosen
@@ -27,6 +30,7 @@ export default function RacePanel({ app }: { app: AppView }) {
                 !course.straight_course && course.turn,
                 shownCard.weather && WEATHER_LABEL[shownCard.weather],
                 shownCard.track && TRACK_LABEL[shownCard.track],
+                (shownCard.fences ?? 0) > 0 && `障害${shownCard.fences}回`,
               ]
                 .filter(Boolean)
                 .join("・")}
@@ -38,7 +42,7 @@ export default function RacePanel({ app }: { app: AppView }) {
         if (!course?.lap || !shownCard) return null;
         const spot = gateSpot(
           shownCard.distance,
-          courseShape({ ...course, lap: course.lap }, shownCard.surface, shownCard.distance, MAP_WIDTH, MAP_HEIGHT)
+          courseShape({ ...course, lap: course.lap }, onTrack(shownCard.surface), shownCard.distance, MAP_WIDTH, MAP_HEIGHT)
         );
         return (
           <p className="gate-info" aria-label="ゲート位置">
@@ -95,11 +99,12 @@ export default function RacePanel({ app }: { app: AppView }) {
         const places = outcome && shown > 0 ? outcome.frames[shown - 1] : [];
         return (
           <CourseMap
+            fences={shownCard!.fences}
             distance={trackDistance}
-            shape={courseShape({ ...course, lap: course.lap }, shownCard!.surface, trackDistance, MAP_WIDTH, MAP_HEIGHT)}
+            shape={courseShape({ ...course, lap: course.lap }, onTrack(shownCard!.surface), trackDistance, MAP_WIDTH, MAP_HEIGHT)}
             shapeName={
-              COURSE_SHAPES[shapeKey(course.name, shownCard!.surface, course.layout)] && !course.straight_course
-                ? shapeKey(course.name, shownCard!.surface, course.layout)
+              COURSE_SHAPES[shapeKey(course.name, onTrack(shownCard!.surface), course.layout)] && !course.straight_course
+                ? shapeKey(course.name, onTrack(shownCard!.surface), course.layout)
                 : undefined
             }
             runners={laneNames.map((name, i) => ({
@@ -177,6 +182,7 @@ export default function RacePanel({ app }: { app: AppView }) {
               </li>
             ))}
           </ol>
+          {(outcome.stopped?.length ?? 0) > 0 && <p className="stopped">{`競走中止: ${outcome.stopped!.join("、")}`}</p>}
           {(outcome.tickets?.length ?? 0) > 1 && (
             <ul className="ticket-results">
               {outcome.tickets!.map((t, i) => (
