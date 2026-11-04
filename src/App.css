@@ -343,6 +343,8 @@ button.link { background: none; border: none; padding: 0; color: #14532d; font-w
 .gear { display: inline-flex; gap: 2px; }
 .gear-mark { display: inline-block; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
 .gear-mark.menko { background: #2a6f97; }
+.season-note { margin-left: 6px; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #f3e3c3; color: #7a4b2a; }
+.gear-mark.blinkers { background: #7a4b2a; }
 .gear-mark.shadow { background: #e9e5d6; color: #3c3a33; border: 1px solid #b9b39f; }
 
 /* breeding tab: stud book and market */
@@ -361,3 +363,6 @@ button.link { background: none; border: none; padding: 0; color: #14532d; font-w
 .fatigue-meter small { position: relative; display: block; text-align: center; font-size: 11px; line-height: 14px; font-weight: 700; color: #2b2a26; }
 .training td.train .resting { margin-left: 6px; font-size: 12px; font-weight: 700; color: #2a6f97; }
 .training td.train .auto { display: inline-flex; align-items: center; gap: 2px; margin-right: 8px; font-size: 12px; white-space: nowrap; }
+
+.leading-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.leading-history { margin: 12px 0 0; padding-left: 18px; font-size: 13px; }

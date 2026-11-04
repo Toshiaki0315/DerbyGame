@@ -64,11 +64,11 @@ export default function PedigreeTab({ app }: { app: AppView }) {
             <button
               className="retire"
               aria-label={`${h.name}を引退させる`}
-              disabled={racing || game.field.length <= 1 || studsFull || isYoung(h)}
+              disabled={racing || game.field.length <= 1 || (studsFull && !h.gelded) || isYoung(h)}
               title={
                 isYoung(h)
                   ? `${DEBUT_AGE}歳になるまで引退できません`
-                  : studsFull
+                  : studsFull && !h.gelded
                     ? "繁殖馬がいっぱいです"
                     : game.field.length <= 1
                       ? "最後の1頭です"
@@ -76,7 +76,7 @@ export default function PedigreeTab({ app }: { app: AppView }) {
               }
               onClick={() => retireHorse(h.name)}
             >
-              引退(繁殖入り)
+              {h.gelded ? "引退" : "引退(繁殖入り)"}
             </button>
           </section>
         ))}

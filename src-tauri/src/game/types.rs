@@ -69,6 +69,8 @@ pub enum GameError {
     UnknownTrainer,
     /// A trainer's stable with no room for another horse.
     TrainerFull,
+    /// Gelding a horse that has been already.
+    AlreadyGelded,
 }
 
 impl std::fmt::Display for GameError {
@@ -108,6 +110,7 @@ impl std::fmt::Display for GameError {
             GameError::NotOnPasture => "その馬は放牧に出ていません",
             GameError::UnknownTrainer => "その調教師はいません",
             GameError::TrainerFull => "その調教師の厩舎は満員です",
+            GameError::AlreadyGelded => "その馬はすでに去勢しています",
             GameError::NotForSale => "その馬は販売されていません",
             GameError::TooTired => "疲労がたまっています。休ませてください",
             GameError::Resting => "その馬は今週休養中です",
@@ -274,6 +277,12 @@ pub struct GameState {
     pub train_fatigue_limit: u32,
     /// お任せ never spends the stable's money below this.
     pub auto_keep_money: u32,
+    /// What gelding a colt costs.
+    pub gelding_cost: u32,
+    /// This year's leading tables so far.
+    pub leading: Leading,
+    /// Who led the years gone by.
+    pub leading_years: Vec<LeadingYear>,
     /// The horses old enough to race.
     pub racers: usize,
     /// The horses still racing when a foal mated now would first run.
@@ -650,6 +659,7 @@ pub struct StudEntry {
 pub struct HorseEntry {
     /// The order given to its jockey (作戦), if any.
     pub order: Option<Style>,
+    pub gelded: bool,
     pub name: String,
     pub speed: u32,
     pub stamina: u32,
@@ -906,6 +916,9 @@ pub struct RaceSpec {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CardEntry {
     pub name: String,
+    pub gelded: bool,
+    /// What the season is doing to it this week (夏負け and so on).
+    pub season: Option<String>,
     pub speed: u32,
     pub stamina: u32,
     pub condition: Condition,
@@ -1159,6 +1172,48 @@ pub(super) fn fatigue_form(fatigue: u32) -> f64 {
     }
 }
 
+/// Someone working in racing: since when, and the year they are to retire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Staff {
+    pub id: u8,
+    pub since: u32,
+    pub until: u32,
+}
+
+/// The stable's own wins this year, by jockey, trainer and sire (its blood record).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct YearWins {
+    pub jockeys: std::collections::HashMap<u8, u32>,
+    pub trainers: std::collections::HashMap<u8, u32>,
+    pub sires: std::collections::HashMap<u32, u32>,
+}
+
+/// A line of a leading table (リーディング).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LeadingRow {
+    pub name: String,
+    pub wins: u32,
+    /// How many of them were for the stable.
+    pub own_wins: u32,
+}
+
+/// This year's tables so far.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Leading {
+    pub jockeys: Vec<LeadingRow>,
+    pub trainers: Vec<LeadingRow>,
+    pub sires: Vec<LeadingRow>,
+}
+
+/// Who led a past year.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LeadingYear {
+    pub year: u32,
+    pub jockey: String,
+    pub trainer: String,
+    pub sire: String,
+}
+
 /// A horse in the racing stable, and everything kept about it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StableHorse {
@@ -1172,6 +1227,9 @@ pub struct StableHorse {
     /// Temperament (気性, 0-100): from the blood record, then trained.
     pub(super) temper: u32,
     pub(super) sex: Sex,
+    /// Gelded (去勢): calmer, closed to the Classics, and no use at stud.
+    #[serde(default)]
+    pub(super) gelded: bool,
     pub(super) age: u8,
     /// The horse's record in the blood database.
     pub(super) blood_id: u32,
@@ -1220,6 +1278,7 @@ impl StableHorse {
             dirt: default_dirt(name),
             temper: 0,
             sex: default_sex(name),
+            gelded: false,
             age: default_age(name),
             blood_id: 0,
             condition: Condition::Normal,

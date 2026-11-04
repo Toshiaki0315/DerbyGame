@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import App from "./App";
+import { gradeLabel } from "./Calendar";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 import { invoke } from "@tauri-apps/api/core";
@@ -2738,6 +2739,93 @@ describe("App", () => {
     });
   });
 
+  describe("new parts of the stable and the record", () => {
+    const row = (name: string, wins: number, own_wins = 0) => ({ name, wins, own_wins });
+    const withLeading = {
+      ...state,
+      leading: { jockeys: [row("神崎 颯", 80, 2)], trainers: [row("鬼塚", 40)], sires: [row("ナギサ", 30)] },
+      leading_years: [{ year: 1, jockey: "神崎 颯", trainer: "鬼塚", sire: "ナギサ" }],
+    };
+
+    it("shows the leading tables with the stable's own wins, and past leaders", async () => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: withLeading });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "実績" }));
+      const jockeys = screen.getByRole("table", { name: "騎手リーディング" });
+      expect(within(jockeys).getByText("80(2)")).toBeTruthy();
+      expect(within(screen.getByRole("table", { name: "種牡馬リーディング" })).getByText("ナギサ")).toBeTruthy();
+      expect(within(screen.getByRole("list", { name: "過去のリーディング" })).getByText(/1年目: 騎手 神崎 颯/)).toBeTruthy();
+    });
+
+    it("shows a gelding as セ and offers to geld only colts", async () => {
+      const trainers = [{ id: 0, name: "鬼塚", region: "美浦", training: "標準", distance: "万能", rotation: "標準", aim: "バランス", description: "" }];
+      const [first, second, third] = [state.field[0], state.field[1], state.field[0]];
+      const colt = { ...first, sex: "male", trainer: 0, sale_price: 100 };
+      const gelding = { ...second, sex: "male", gelded: true, trainer: 0, sale_price: 100, age: 4 };
+      const filly = { ...third, name: "Filly", sex: "female", trainer: 0, sale_price: 100 };
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, trainers, stable_capacity: 10, gelding_cost: 300, field: [colt, gelding, filly] } });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
+      expect(screen.getByRole("button", { name: `${colt.name}を去勢` })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: `${gelding.name}を去勢` })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Fillyを去勢" })).toBeNull();
+      expect(screen.getByText("セ4")).toBeTruthy();
+    });
+
+    it("gelds a colt once asked and told yes", async () => {
+      const trainers = [{ id: 0, name: "鬼塚", region: "美浦", training: "標準", distance: "万能", rotation: "標準", aim: "バランス", description: "" }];
+      const colt = { ...state.field[0], sex: "male", trainer: 0, sale_price: 100 };
+      const geld = vi.fn(() => ({ ...state, trainers, field: [{ ...colt, gelded: true }] }));
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, trainers, stable_capacity: 10, gelding_cost: 300, field: [colt] }, geld_horse: geld });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
+      fireEvent.click(screen.getByRole("button", { name: `${colt.name}を去勢` }));
+      await waitFor(() => expect(geld).toHaveBeenCalledWith({ name: colt.name }));
+    });
+
+    it("sends the blinkers with the rest of the gear", async () => {
+      const setGear = vi.fn(() => state);
+      mockBackend(undefined, undefined, undefined, { set_gear: setGear });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "育成" }));
+      fireEvent.click(screen.getByLabelText(`${state.field[0].name}のブリンカー`));
+      await waitFor(() => expect(setGear).toHaveBeenCalledWith({ horse: state.field[0].name, menko: false, shadowRoll: false, blinkers: true }));
+    });
+
+    it("says what the season is doing to a runner", async () => {
+      const entrants = freeCard.entrants.map((e, i) => ({ ...e, season: i === 0 ? "夏負け" : null }));
+      mockBackend(undefined, undefined, undefined, { get_race_card: { ...freeCard, entrants } });
+      render(<App />);
+      await ready();
+      expect(await screen.findByText("夏負け")).toBeTruthy();
+    });
+
+    it("writes the grades of the local tracks as Jpn", () => {
+      expect(gradeLabel({ grade: "g1", venue: "oi" })).toBe("JpnI");
+      expect(gradeLabel({ grade: "g3", venue: "sonoda" })).toBe("JpnIII");
+      expect(gradeLabel({ grade: "g1", venue: "tokyo" })).toBe("G1");
+      expect(gradeLabel({ grade: "open", venue: "oi" })).toBe("OP");
+    });
+
+    it("gives the odds of the foal's growth with the outlook", async () => {
+      const outlook = { inbreed_vol: 0, penalty: 0, nick: null, growth: { early: 20, normal: 60, late: 20 } };
+      const studs = [
+        { name: "チチ", sex: "male", speed: 1, stamina: 1, power: 1, wins: 0, starts: 0, age: 9 },
+        { name: "ハハ", sex: "female", speed: 1, stamina: 1, power: 1, wins: 0, starts: 0, age: 9 },
+      ];
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, studs }, breeding_outlook: outlook });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "繁殖" }));
+      expect(await screen.findByText("仔の成長型の見込み: 早熟20% / 普通60% / 晩成20%")).toBeTruthy();
+    });
+  });
+
   describe("running out of horses", () => {
     const warning = () => screen.queryByRole("status", { name: "後継の馬" });
 
@@ -3126,11 +3214,11 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("tab", { name: "育成" }));
     const train = screen.getByRole("tabpanel", { name: "育成" });
     fireEvent.click(within(train).getByLabelText("Fastのメンコ"));
-    await waitFor(() => expect(setGear).toHaveBeenCalledWith({ horse: "Fast", menko: true, shadowRoll: false }));
+    await waitFor(() => expect(setGear).toHaveBeenCalledWith({ horse: "Fast", menko: true, shadowRoll: false, blinkers: false }));
     await waitFor(() => expect((within(train).getByLabelText("Fastのメンコ") as HTMLInputElement).checked).toBe(true));
     await waitFor(() => expect(cards()).toBeGreaterThan(before)); // the odds are asked for again
     fireEvent.click(within(train).getByLabelText("Fastのシャドーロール"));
-    await waitFor(() => expect(setGear).toHaveBeenCalledWith({ horse: "Fast", menko: true, shadowRoll: true }));
+    await waitFor(() => expect(setGear).toHaveBeenCalledWith({ horse: "Fast", menko: true, shadowRoll: true, blinkers: false }));
   });
 
   it("sets gear only on the training tab, not when entering a race", async () => {

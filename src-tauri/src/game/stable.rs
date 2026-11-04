@@ -101,6 +101,11 @@ impl Game {
         if self.field[i].age < DEBUT_AGE {
             return Err(GameError::TooYoung);
         }
+        if self.field[i].gelded {
+            let gone = self.remove_slot(i);
+            self.consider_for_the_hall(&gone.name, gone.record.wins, &gone.career);
+            return Ok(());
+        }
         if self.studs.len() >= MAX_STUDS {
             return Err(GameError::StudFull);
         }
@@ -114,6 +119,12 @@ impl Game {
     /// its longest-serving stud go to make room.
     pub(super) fn retire_the_old(&mut self) {
         while let Some(i) = self.field.iter().position(|h| h.age >= RETIRE_AGE) {
+            if self.field[i].gelded {
+                let gone = self.remove_slot(i);
+                self.news.push(format!("{}が引退しました。", gone.name));
+                self.consider_for_the_hall(&gone.name, gone.record.wins, &gone.career);
+                continue;
+            }
             if self.studs.len() >= MAX_STUDS {
                 let gone = self.studs.remove(0);
                 self.news
@@ -126,6 +137,36 @@ impl Game {
             self.consider_for_the_hall(&stud.name, stud.record.wins, &stud.career);
             self.studs.push(stud);
         }
+    }
+
+    /// Gelds a colt: it calms down, and has some weeks at pasture getting over it.
+    pub fn geld(&mut self, name: &str) -> Result<(), GameError> {
+        let i = self.slot(name)?;
+        if self.field[i].sex != Sex::Male {
+            return Err(GameError::WrongSex);
+        }
+        if self.field[i].gelded {
+            return Err(GameError::AlreadyGelded);
+        }
+        if self.field[i].away.is_some() {
+            return Err(GameError::Away);
+        }
+        // the whole of the money would end the game
+        if GELDING_COST >= self.money {
+            return Err(GameError::InsufficientFunds);
+        }
+        self.money -= GELDING_COST;
+        let h = &mut self.field[i];
+        h.gelded = true;
+        h.temper = (h.temper + GELDING_CALM).min(100);
+        h.resting = false;
+        h.away = Some(Away {
+            kind: AwayKind::Pasture,
+            label: "去勢後の放牧".to_string(),
+            weeks: GELDING_WEEKS,
+        });
+        self.withdraw(name);
+        Ok(())
     }
 
     /// The horses old enough to race, away for now or not.
@@ -352,7 +393,7 @@ impl Game {
     /// Sends a horse to another trainer's stable, if it has room.
     pub fn set_trainer(&mut self, name: &str, id: u8) -> Result<(), GameError> {
         let i = self.slot(name)?;
-        if id as usize >= TRAINERS.len() {
+        if self.trainers_now().iter().all(|t| t.id != id) {
             return Err(GameError::UnknownTrainer);
         }
         if self.field[i].trainer != id && self.stable_count(id) >= STABLE_CAPACITY {
@@ -368,7 +409,7 @@ impl Game {
 
     /// The stable with the fewest horses, where a foal goes.
     pub(super) fn emptiest_stable(&self) -> u8 {
-        TRAINERS
+        self.trainers_now()
             .iter()
             .min_by_key(|t| self.stable_count(t.id))
             .map_or(0, |t| t.id)
@@ -408,7 +449,7 @@ impl Game {
     /// Chooses a horse's jockey, or (none) leaves it to the trainer.
     pub fn set_jockey(&mut self, name: &str, id: Option<u8>) -> Result<(), GameError> {
         let i = self.slot(name)?;
-        if id.is_some_and(|id| jockey::jockey_by_id(id).is_none()) {
+        if id.is_some_and(|id| self.jockeys_now().iter().all(|j| j.id != id)) {
             return Err(GameError::UnknownJockey);
         }
         self.field[i].jockey = id;

@@ -121,6 +121,230 @@ const fn jockey(
     }
 }
 
+/// Those who come in as others retire, in the order they do.
+pub const ROOKIES: [Jockey; 20] = [
+    jockey(
+        10,
+        "朝霧 蒼",
+        90,
+        Style::Sashi,
+        Turn::Left,
+        Region::East,
+        9,
+        18,
+        "末脚の切れで鳴らす若き才能です。",
+    ),
+    jockey(
+        11,
+        "鳴海 瑛斗",
+        86,
+        Style::Nige,
+        Turn::Right,
+        Region::West,
+        5,
+        16,
+        "思い切りのよい逃げが武器の新鋭です。",
+    ),
+    jockey(
+        12,
+        "椿 陽菜",
+        84,
+        Style::Senko,
+        Turn::Left,
+        Region::East,
+        12,
+        14,
+        "馬をなだめるのが上手な若手です。",
+    ),
+    jockey(
+        13,
+        "伊吹 剛",
+        80,
+        Style::Oikomi,
+        Turn::Right,
+        Region::West,
+        6,
+        12,
+        "豪快な追い込みでファンを沸かせます。",
+    ),
+    jockey(
+        14,
+        "榊原 匠",
+        78,
+        Style::Senko,
+        Turn::Right,
+        Region::East,
+        8,
+        11,
+        "堅実な騎乗に定評があります。",
+    ),
+    jockey(
+        15,
+        "白峰 透",
+        74,
+        Style::Sashi,
+        Turn::Right,
+        Region::West,
+        10,
+        9,
+        "折り合いをつけるのが巧みです。",
+    ),
+    jockey(
+        16,
+        "藤堂 迅",
+        70,
+        Style::Nige,
+        Turn::Left,
+        Region::East,
+        4,
+        7,
+        "積極的に先手を奪います。",
+    ),
+    jockey(
+        17,
+        "雨宮 栞",
+        68,
+        Style::Sashi,
+        Turn::Left,
+        Region::West,
+        13,
+        6,
+        "気性の難しい馬に合います。",
+    ),
+    jockey(
+        18,
+        "真壁 大河",
+        64,
+        Style::Senko,
+        Turn::Right,
+        Region::East,
+        5,
+        5,
+        "手頃な料金で安定した騎乗をします。",
+    ),
+    jockey(
+        19,
+        "桐谷 凪",
+        62,
+        Style::Oikomi,
+        Turn::Left,
+        Region::West,
+        7,
+        5,
+        "後方からじっくり運びます。",
+    ),
+    jockey(
+        20,
+        "東雲 涼",
+        88,
+        Style::Senko,
+        Turn::Left,
+        Region::East,
+        9,
+        17,
+        "天才と呼ばれる期待の星です。",
+    ),
+    jockey(
+        21,
+        "葛城 仁",
+        82,
+        Style::Sashi,
+        Turn::Right,
+        Region::West,
+        8,
+        13,
+        "大舞台に強い勝負師です。",
+    ),
+    jockey(
+        22,
+        "七瀬 光",
+        76,
+        Style::Nige,
+        Turn::Right,
+        Region::East,
+        6,
+        10,
+        "スタートの上手さが光ります。",
+    ),
+    jockey(
+        23,
+        "御影 岳人",
+        72,
+        Style::Oikomi,
+        Turn::Right,
+        Region::West,
+        5,
+        8,
+        "直線の長いコースが得意です。",
+    ),
+    jockey(
+        24,
+        "早乙女 咲",
+        66,
+        Style::Senko,
+        Turn::Left,
+        Region::East,
+        14,
+        6,
+        "馬を落ち着かせる名人です。",
+    ),
+    jockey(
+        25,
+        "立花 蓮司",
+        60,
+        Style::Sashi,
+        Turn::Left,
+        Region::West,
+        6,
+        4,
+        "騎乗料の安さが魅力です。",
+    ),
+    jockey(
+        26,
+        "氷室 駿",
+        85,
+        Style::Sashi,
+        Turn::Left,
+        Region::East,
+        7,
+        15,
+        "鋭い差し脚を引き出します。",
+    ),
+    jockey(
+        27,
+        "楠 大和",
+        79,
+        Style::Senko,
+        Turn::Right,
+        Region::West,
+        9,
+        12,
+        "好位からの競馬が得意です。",
+    ),
+    jockey(
+        28,
+        "綾瀬 碧",
+        73,
+        Style::Nige,
+        Turn::Left,
+        Region::East,
+        8,
+        8,
+        "軽快に逃げる若手です。",
+    ),
+    jockey(
+        29,
+        "神楽 零",
+        69,
+        Style::Oikomi,
+        Turn::Right,
+        Region::West,
+        4,
+        7,
+        "最後の直線に賭ける職人です。",
+    ),
+];
+
 pub const JOCKEYS: [Jockey; 10] = [
     jockey(
         0,
@@ -234,22 +458,49 @@ pub const JOCKEYS: [Jockey; 10] = [
     ),
 ];
 
+/// How far below their best a new jockey starts, and what each year brings back.
+const ROOKIE_LOSS: u32 = 12;
+const ROOKIE_GAIN: u32 = 4;
+
+/// What a jockey who has been riding for some years can do by now: only those who
+/// came in new have anything to learn.
+pub fn skill_after(best: u32, new: bool, years: u32) -> u32 {
+    if new {
+        best.saturating_sub(ROOKIE_LOSS.saturating_sub(ROOKIE_GAIN * years))
+    } else {
+        best
+    }
+}
+
 pub fn jockey_by_id(id: u8) -> Option<&'static Jockey> {
-    JOCKEYS.get(id as usize)
+    JOCKEYS.iter().chain(&ROOKIES).find(|j| j.id == id)
 }
 
 /// The jockey a trainer books: of those they can afford and who are not riding
 /// another of the stable's horses in the race, the one who adds the most to this
 /// horse, from the trainer's own side if anyone there is free. With nobody within
 /// budget, the cheapest who is free.
+#[cfg(test)]
 pub fn trainer_pick(
     budget: u32,
     style: Option<Style>,
     turn: Turn,
     taken: &[u8],
     region: Option<Region>,
-) -> Option<&'static Jockey> {
-    let free = || JOCKEYS.iter().filter(|j| !taken.contains(&j.id));
+) -> Option<Jockey> {
+    pick_from(&JOCKEYS, budget, style, turn, taken, region)
+}
+
+/// [`trainer_pick`] among the jockeys riding now.
+pub fn pick_from(
+    roster: &[Jockey],
+    budget: u32,
+    style: Option<Style>,
+    turn: Turn,
+    taken: &[u8],
+    region: Option<Region>,
+) -> Option<Jockey> {
+    let free = || roster.iter().filter(|j| !taken.contains(&j.id));
     let best_of = |near: bool| {
         free()
             .rev()
@@ -262,6 +513,7 @@ pub fn trainer_pick(
     best_of(true)
         .or_else(|| best_of(false))
         .or_else(|| free().min_by_key(|j| j.fee))
+        .copied()
 }
 
 #[cfg(test)]
@@ -320,7 +572,7 @@ mod tests {
         }
         let names: HashSet<_> = JOCKEYS.iter().map(|j| j.name).collect();
         assert_eq!(names.len(), 10);
-        assert!(jockey_by_id(0).is_some() && jockey_by_id(10).is_none());
+        assert!(jockey_by_id(0).is_some() && jockey_by_id(30).is_none());
     }
 
     #[test]

@@ -77,7 +77,16 @@ fn a_real_version_1_save_loads_with_every_list_on_the_right_horse() {
         assert_eq!(horses[i]["speed"], old["field"][i]["speed"]);
         assert_eq!(horses[i]["stamina"], old["field"][i]["stamina"]);
         for (list, key) in lists {
-            assert_eq!(horses[i][key], old[list][i], "{list} of horse {i}");
+            // what a version 1 save has of each, leaving out what came later
+            let saved = &old[list][i];
+            match saved.as_object() {
+                Some(fields) if key == "gear" => {
+                    for (field, value) in fields {
+                        assert_eq!(&horses[i][key][field], value, "{list} of horse {i}");
+                    }
+                }
+                _ => assert_eq!(&horses[i][key], saved, "{list} of horse {i}"),
+            }
         }
     }
     assert_eq!(g.money as u64, old["money"].as_u64().unwrap());

@@ -48,7 +48,12 @@ impl Game {
             .iter()
             .map(|e| {
                 let (speed, stamina) = Self::run_stats(e, spec.surface, spec.distance, spec.track);
-                Horse::new(&e.name, speed, stamina)
+                let season = spec
+                    .race
+                    .as_ref()
+                    .map_or(1.0, |r| form::season_form(&e.name, r.week));
+                let scaled = |stat: u32| (stat as f64 * season).round() as u32;
+                Horse::new(&e.name, scaled(speed), scaled(stamina))
             })
             .collect()
     }
@@ -75,6 +80,17 @@ impl Game {
                 }
                 if winner == Some(e.name.as_str()) {
                     self.field[i].record.wins += 1;
+                    if let Some(ride) = &e.jockey {
+                        *self.year_wins.jockeys.entry(ride.id).or_default() += 1;
+                    }
+                    let trainer = self.field[i].trainer;
+                    *self.year_wins.trainers.entry(trainer).or_default() += 1;
+                    let sire = self
+                        .blood_record(self.field[i].blood_id)
+                        .and_then(|r| r.sire_id);
+                    if let Some(sire) = sire {
+                        *self.year_wins.sires.entry(sire).or_default() += 1;
+                    }
                 }
             }
         }
@@ -277,9 +293,15 @@ impl Game {
                     && !self.field[i].resting
                     && self.field[i].away.is_none()
                     && !self.short_of_earnings(i, race)
+                    && !self.closed_to_gelding(i, race)
                     && self.field[i].fatigue < RACE_FATIGUE_LIMIT
             })
             .collect()
+    }
+
+    /// The Classics are for horses that could go on to stud.
+    pub(super) fn closed_to_gelding(&self, i: usize, race: &CalendarRace) -> bool {
+        self.field[i].gelded && TRIPLE_CROWN.contains(&race.name.as_str())
     }
 
     /// Whether a G1 is closed to a horse: it takes horses with enough earnings or a
@@ -561,9 +583,12 @@ impl Game {
                     fatigue: self.field[i].fatigue,
                     resting: self.field[i].resting,
                     away: self.field[i].away.clone(),
-                    barred: self
-                        .short_of_earnings(i, &race)
-                        .then(|| "賞金不足".to_string()),
+                    barred: if self.closed_to_gelding(i, &race) {
+                        Some("セン馬不可".to_string())
+                    } else {
+                        self.short_of_earnings(i, &race)
+                            .then(|| "賞金不足".to_string())
+                    },
                 })
                 .collect(),
             trial_for: trials_for(&race),
@@ -600,6 +625,12 @@ impl Game {
                 .zip(table)
                 .zip(popularity)
                 .map(|((e, (odds, place_odds)), popularity)| CardEntry {
+                    season: spec
+                        .race
+                        .as_ref()
+                        .and_then(|r| form::season_note(&e.name, r.week))
+                        .map(str::to_string),
+                    gelded: e.mine && self.field.iter().any(|h| h.name == e.name && h.gelded),
                     name: e.name.clone(),
                     speed: e.speed,
                     stamina: e.stamina,
@@ -697,12 +728,14 @@ impl Game {
             trainer::Aim::Balanced => jockey::BUDGET_BALANCED,
             trainer::Aim::Glory => jockey::BUDGET_GLORY,
         };
+        let roster = self.jockeys_now();
         let j = self.field[i]
             .jockey
-            .and_then(jockey::jockey_by_id)
+            .and_then(|id| roster.iter().find(|j| j.id == id).copied())
             .filter(|j| !taken.contains(&j.id))
             .or_else(|| {
-                jockey::trainer_pick(
+                jockey::pick_from(
+                    &roster,
                     budget,
                     e.style,
                     turn,

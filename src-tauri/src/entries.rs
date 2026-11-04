@@ -10,11 +10,18 @@ pub const FULL_FIELD: usize = 18;
 pub const MIN_FIELD: usize = 6;
 /// What the small courses can start.
 const SMALL_COURSE_GATE: usize = 16;
+/// What the local tracks can start.
+const OI_GATE: usize = 16;
+const KANTO_LOCAL_GATE: usize = 14;
+const SONODA_GATE: usize = 12;
 
 /// The most horses a race at this course can start.
 pub fn full_gate(venue: Venue) -> usize {
     match venue {
         Venue::Sapporo | Venue::Hakodate | Venue::Fukushima => SMALL_COURSE_GATE,
+        Venue::Oi => OI_GATE,
+        Venue::Kawasaki | Venue::Funabashi => KANTO_LOCAL_GATE,
+        Venue::Sonoda => SONODA_GATE,
         _ => FULL_FIELD,
     }
 }

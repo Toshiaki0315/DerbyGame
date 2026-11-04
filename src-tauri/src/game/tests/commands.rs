@@ -67,7 +67,7 @@ fn every_call(horse: &str, mare: &str, sire: &str) -> Vec<(&'static str, Value)>
         ("set_entries", json!({"race": null, "horses": [horse]})),
         (
             "set_gear",
-            json!({"horse": horse, "menko": true, "shadowRoll": true}),
+            json!({"horse": horse, "menko": true, "shadowRoll": true, "blinkers": true}),
         ),
         ("train_horse", json!({"horse": horse, "workout": "wood"})),
         ("set_auto_entry", json!({"horse": horse, "on": false})),
@@ -77,6 +77,7 @@ fn every_call(horse: &str, mare: &str, sire: &str) -> Vec<(&'static str, Value)>
         ("set_auto_training", json!({"horse": horse, "on": false})),
         ("set_order", json!({"horse": horse, "order": null})),
         ("rest_horse", json!({"horse": horse})),
+        ("geld_horse", json!({"name": sire})),
         ("pasture_horse", json!({"name": horse})),
         ("recall_horse", json!({"name": horse})),
         ("accept_advice", json!({"horse": horse})),
@@ -194,7 +195,7 @@ fn a_call_with_an_argument_misnamed_never_reaches_the_game() {
     let err = call(
         &window,
         "set_gear",
-        json!({"horse": "x", "menko": true, "shadow_roll": true}),
+        json!({"horse": "x", "menko": true, "shadow_roll": true, "blinkers": true}),
     )
     .unwrap_err();
     assert!(err.as_str().unwrap().contains("shadowRoll"), "{err}");

@@ -82,12 +82,20 @@ pub struct Gear {
     pub menko: bool,
     /// シャドーロール: keeps the horse's eyes on the track, so it runs closer to its form.
     pub shadow_roll: bool,
+    /// ブリンカー: narrows what the horse sees, so it runs keener but pulls more readily.
+    #[serde(default)]
+    pub blinkers: bool,
 }
 
 /// メンコ halves the chance of pulling for its head.
 const MENKO_KAKARI: f64 = 0.5;
 /// シャドーロール narrows how much a horse's form varies.
 const SHADOW_ROLL_SPREAD: f64 = 0.75;
+
+/// How much faster a horse in ブリンカー runs.
+const BLINKER_PACE: f64 = 1.01;
+/// How many points hotter a horse in ブリンカー behaves when it comes to pulling.
+const BLINKER_TEMPER: f64 = 15.0;
 
 /// What a horse brings to a race besides its speed and stamina.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -231,8 +239,11 @@ impl Race {
             let gear = race.runners[i].gear;
             let spread = PACE_SPREAD * Self::spread_factor(temper) * Self::gear_spread(gear);
             race.runners[i].pace = 1.0 - spread + race.next_f64() * 2.0 * spread;
+            if gear.blinkers {
+                race.runners[i].pace *= BLINKER_PACE;
+            }
             // only a hot-tempered horse can pull, so a neutral field draws nothing more
-            let chance = Self::kakari_chance(temper) * Self::gear_kakari(gear);
+            let chance = Self::kakari_chance_with(temper, gear);
             if chance > 0.0 {
                 race.runners[i].kakari = race.next_f64() < chance;
             }
@@ -261,6 +272,12 @@ impl Race {
         } else {
             1.0
         }
+    }
+
+    /// Chance a horse pulls for its head in this gear.
+    pub fn kakari_chance_with(temper: f64, gear: Gear) -> f64 {
+        let keyed_up = if gear.blinkers { BLINKER_TEMPER } else { 0.0 };
+        Self::kakari_chance(temper - keyed_up) * Self::gear_kakari(gear)
     }
 
     /// Chance a horse pulls for its head: none from a neutral temperament up.
@@ -791,7 +808,11 @@ mod tests {
         Traits {
             style: None,
             temper,
-            gear: Gear { menko, shadow_roll },
+            gear: Gear {
+                menko,
+                shadow_roll,
+                ..Gear::default()
+            },
         }
     }
 
@@ -809,7 +830,8 @@ mod tests {
         assert_eq!(
             Race::gear_kakari(Gear {
                 menko: true,
-                shadow_roll: false
+                shadow_roll: false,
+                ..Gear::default()
             }),
             MENKO_KAKARI
         );
@@ -834,7 +856,8 @@ mod tests {
         assert_eq!(
             Race::gear_spread(Gear {
                 menko: false,
-                shadow_roll: true
+                shadow_roll: true,
+                ..Gear::default()
             }),
             SHADOW_ROLL_SPREAD
         );
@@ -856,9 +879,13 @@ mod tests {
         let v = serde_json::to_value(Gear {
             menko: true,
             shadow_roll: false,
+            ..Gear::default()
         })
         .unwrap();
-        assert_eq!(v, serde_json::json!({"menko": true, "shadow_roll": false}));
+        assert_eq!(
+            v,
+            serde_json::json!({"menko": true, "shadow_roll": false, "blinkers": false})
+        );
     }
 
     #[test]
@@ -912,5 +939,47 @@ mod tests {
             let lengths = (pair[1].finish_time - pair[0].finish_time) * speed / HORSE_LENGTH;
             assert_eq!(pair[1].margin, margin_label(lengths));
         }
+    }
+
+    fn blinkered(temper: f64, blinkers: bool) -> Traits {
+        Traits {
+            style: None,
+            temper,
+            gear: Gear {
+                blinkers,
+                ..Gear::default()
+            },
+        }
+    }
+
+    #[test]
+    fn blinkers_make_a_horse_run_keener() {
+        let pace = |blinkers: bool| {
+            run_equal(&[blinkered(50.0, blinkers)], 2000.0, 300)
+                .iter()
+                .map(|r| r.results()[0].finish_time)
+                .sum::<f64>()
+        };
+        assert!(pace(true) < pace(false));
+    }
+
+    #[test]
+    fn blinkers_make_a_horse_likelier_to_pull() {
+        assert_eq!(Race::kakari_chance_with(60.0, Gear::default()), 0.0);
+        let keen = Gear {
+            blinkers: true,
+            ..Gear::default()
+        };
+        assert_eq!(Race::kakari_chance_with(70.0, keen), 0.0);
+        assert!(Race::kakari_chance_with(60.0, keen) > 0.0);
+        assert!(
+            Race::kakari_chance_with(30.0, keen) > Race::kakari_chance_with(30.0, Gear::default())
+        );
+        let both = Gear {
+            blinkers: true,
+            menko: true,
+            ..Gear::default()
+        };
+        assert!(Race::kakari_chance_with(30.0, both) < Race::kakari_chance_with(30.0, keen));
     }
 }

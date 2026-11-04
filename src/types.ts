@@ -3,9 +3,29 @@
 import { CalendarRace, Grade } from "./Calendar";
 
 /** Racing equipment (馬具). */
+export interface LeadingRow {
+  name: string;
+  wins: number;
+  own_wins: number;
+}
+
+export interface Leading {
+  jockeys: LeadingRow[];
+  trainers: LeadingRow[];
+  sires: LeadingRow[];
+}
+
+export interface LeadingYear {
+  year: number;
+  jockey: string;
+  trainer: string;
+  sire: string;
+}
+
 export interface Gear {
   menko: boolean;
   shadow_roll: boolean;
+  blinkers?: boolean;
 }
 
 /** A racing record (戦績): calendar races run and won. */
@@ -57,6 +77,8 @@ export interface Outlook {
   /** Temperament points the inbreeding would cost. */
   penalty: number;
   nick: { stat: string; bonus: number } | null;
+  /** How the foal is likely to grow up, in percent. */
+  growth?: { early: number; normal: number; late: number };
 }
 
 export interface HorseEntry {
@@ -93,6 +115,7 @@ export interface HorseEntry {
   trainer?: number;
   /** What it would sell for. */
   sale_price?: number;
+  gelded?: boolean;
   /** The strength of its legs (脚元). */
   legs?: number;
   /** At pasture or injured. */
@@ -194,6 +217,10 @@ export interface GameState {
   train_fatigue_limit?: number;
   /** What the stable pays each week for its horses (預託料). */
   weekly_upkeep?: number;
+  /** What gelding a colt costs. */
+  gelding_cost?: number;
+  leading?: Leading;
+  leading_years?: LeadingYear[];
   /** The rivals racing now, honours won, the hall of fame and the trainers' records. */
   stars?: Star[];
   awards?: Award[];
@@ -481,6 +508,9 @@ export interface Runner {
   mine: boolean;
   odds: number;
   place_odds: number;
+  gelded?: boolean;
+  /** What the season is doing to it this week. */
+  season?: string | null;
   /** Its place in the betting (人気). */
   popularity?: number;
 }

@@ -455,7 +455,7 @@ fn a_win_goes_down_in_the_horses_career_and_its_trainers() {
     assert_eq!(v["field"][i]["career"]["earnings"], prize);
     assert_eq!(
         v["trainer_records"].as_array().unwrap().len(),
-        TRAINERS.len()
+        trainer::ALL_TRAINERS
     );
 }
 
@@ -712,7 +712,7 @@ fn achievements_are_kept_in_a_save_and_old_saves_start_clean() {
         s.as_object_mut().unwrap().remove("career");
     }
     let old = Game::from_json(&old.to_string()).unwrap();
-    assert_eq!(old.trainer_records.len(), TRAINERS.len());
+    assert_eq!(old.trainer_records.len(), trainer::ALL_TRAINERS);
 }
 
 #[test]

@@ -445,3 +445,95 @@ fn the_frontend_race_key_and_card_json_shapes_match() {
     assert!(out["race_name"].is_null());
     assert!(out["runners"].is_array());
 }
+
+// ---- local courses and the races open to all (地方・交流重賞) ----
+
+fn local_races() -> Vec<CalendarRace> {
+    calendar::shared()
+        .races
+        .iter()
+        .filter(|r| r.venue.is_local())
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn the_local_tracks_run_stakes_races_on_dirt_at_each_course() {
+    let races = local_races();
+    assert!(races.len() >= 8, "{}", races.len());
+    for r in &races {
+        assert_eq!(r.surface, Surface::Dirt, "{}", r.name);
+        assert!(
+            matches!(r.grade, Grade::G1 | Grade::G2 | Grade::G3),
+            "{}",
+            r.name
+        );
+        assert!(
+            calendar::course_distances(r.venue, Surface::Dirt).contains(&r.distance),
+            "{}",
+            r.name
+        );
+    }
+    for v in [Venue::Oi, Venue::Kawasaki, Venue::Funabashi, Venue::Sonoda] {
+        assert!(races.iter().any(|r| r.venue == v), "{v:?}");
+    }
+}
+
+#[test]
+fn the_ten_national_courses_are_not_local() {
+    for v in crate::calendar::ALL_VENUES {
+        assert!(!v.is_local(), "{v:?}");
+    }
+}
+
+#[test]
+fn a_local_race_can_be_entered_and_run() {
+    let r = local_races()
+        .into_iter()
+        .find(|r| r.grade == Grade::G3)
+        .unwrap();
+    let mut g = Game::new();
+    g.week = r.week;
+    let key = RaceKey::of(&r);
+    let i = (0..g.field.len())
+        .find(|&i| {
+            r.eligibility
+                .allows(g.field[i].age, g.field[i].sex == Sex::Female)
+        })
+        .unwrap();
+    g.field[i].record = RaceRecord { starts: 5, wins: 3 };
+    let name = g.field[i].name.clone();
+    g.set_entries(Some(&key), std::slice::from_ref(&name))
+        .unwrap();
+    let card = g.race_card(Some(&key)).unwrap();
+    assert!(card.entrants.iter().any(|e| e.name == name));
+    assert!(card.course.lap > 0.0 && card.course.straight > 0.0);
+    assert!(g.watch_race(Some(&key), 1).is_ok());
+}
+
+#[test]
+fn a_local_course_starts_no_more_than_its_gate_and_at_least_a_race() {
+    for r in local_races() {
+        let mut g = Game::new();
+        g.entry_rules = true;
+        g.week = r.week;
+        let card = g.race_card(Some(&RaceKey::of(&r))).unwrap();
+        let gate = entries::full_gate(r.venue);
+        assert!(
+            card.entrants.len() <= gate,
+            "{}: {}",
+            r.name,
+            card.entrants.len()
+        );
+        assert!(card.entrants.len() >= entries::MIN_FIELD, "{}", r.name);
+        assert_eq!(card.gate, gate);
+    }
+}
+
+#[test]
+fn local_races_are_not_in_a_meeting_of_their_own() {
+    assert!(calendar::shared()
+        .meetings
+        .iter()
+        .all(|m| !m.venue.is_local()));
+}

@@ -356,8 +356,169 @@ pub const TRAINERS: [Trainer; 10] = [
 ];
 
 /// The trainer with this id (an unknown id gets the first).
+/// Those who take over a stable as others retire, in the order they do.
+pub const SUCCESSORS: [Trainer; 15] = [
+    trainer(
+        10,
+        "柏木 洋介",
+        Region::East,
+        Training::Hard,
+        Distance::Middle,
+        Rotation::Regular,
+        Aim::Balanced,
+        "中距離路線で着実に勝ち星を重ねます。",
+    ),
+    trainer(
+        11,
+        "三条 真理",
+        Region::West,
+        Training::Gentle,
+        Distance::Mile,
+        Rotation::Spaced,
+        Aim::Balanced,
+        "馬に無理をさせない丁寧な仕事が評判です。",
+    ),
+    trainer(
+        12,
+        "大門 勝",
+        Region::East,
+        Training::Sparta,
+        Distance::Sprint,
+        Rotation::Busy,
+        Aim::Steady,
+        "強い調教で短距離馬を鍛え上げます。",
+    ),
+    trainer(
+        13,
+        "志摩 恭介",
+        Region::West,
+        Training::Normal,
+        Distance::Stayer,
+        Rotation::ByForm,
+        Aim::Glory,
+        "長距離の大レースを狙う野心家です。",
+    ),
+    trainer(
+        14,
+        "若林 悠",
+        Region::East,
+        Training::Kind,
+        Distance::Any,
+        Rotation::Spaced,
+        Aim::Glory,
+        "馬の成長を待つ若手調教師です。",
+    ),
+    trainer(
+        15,
+        "浜口 剛士",
+        Region::West,
+        Training::Hard,
+        Distance::Any,
+        Rotation::Regular,
+        Aim::Steady,
+        "堅実に賞金を積み上げます。",
+    ),
+    trainer(
+        16,
+        "東堂 彩",
+        Region::East,
+        Training::Normal,
+        Distance::Mile,
+        Rotation::ByForm,
+        Aim::Glory,
+        "マイル路線に強い期待の新人です。",
+    ),
+    trainer(
+        17,
+        "鷹取 健",
+        Region::West,
+        Training::Sparta,
+        Distance::Middle,
+        Rotation::Regular,
+        Aim::Glory,
+        "厳しい調教で大舞台を目指します。",
+    ),
+    trainer(
+        18,
+        "芹沢 拓",
+        Region::East,
+        Training::Gentle,
+        Distance::Stayer,
+        Rotation::Spaced,
+        Aim::Balanced,
+        "長い距離をじっくり仕上げます。",
+    ),
+    trainer(
+        19,
+        "朝倉 律",
+        Region::West,
+        Training::Normal,
+        Distance::Sprint,
+        Rotation::ByForm,
+        Aim::Steady,
+        "短距離で堅実に稼ぎます。",
+    ),
+    trainer(
+        20,
+        "国見 亮",
+        Region::East,
+        Training::Hard,
+        Distance::Middle,
+        Rotation::Busy,
+        Aim::Balanced,
+        "使いながら仕上げるのが得意です。",
+    ),
+    trainer(
+        21,
+        "八雲 澄",
+        Region::West,
+        Training::Kind,
+        Distance::Mile,
+        Rotation::Spaced,
+        Aim::Balanced,
+        "馬を大切にする調教師です。",
+    ),
+    trainer(
+        22,
+        "望月 俊",
+        Region::East,
+        Training::Normal,
+        Distance::Any,
+        Rotation::Regular,
+        Aim::Balanced,
+        "どの距離でも結果を出します。",
+    ),
+    trainer(
+        23,
+        "蓮見 貴",
+        Region::West,
+        Training::Hard,
+        Distance::Stayer,
+        Rotation::Regular,
+        Aim::Glory,
+        "長距離のG1を狙います。",
+    ),
+    trainer(
+        24,
+        "結城 奏",
+        Region::East,
+        Training::Gentle,
+        Distance::Sprint,
+        Rotation::ByForm,
+        Aim::Steady,
+        "スピード馬の扱いが上手です。",
+    ),
+];
+
+/// Every trainer there will ever be.
+pub const ALL_TRAINERS: usize = TRAINERS.len() + SUCCESSORS.len();
+
 pub fn trainer_by_id(id: u8) -> &'static Trainer {
-    TRAINERS.get(id as usize).unwrap_or(&TRAINERS[0])
+    TRAINERS
+        .iter()
+        .chain(&SUCCESSORS)
+        .find(|t| t.id == id)
+        .unwrap_or(&TRAINERS[0])
 }
 
 #[cfg(test)]

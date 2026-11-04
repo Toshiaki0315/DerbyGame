@@ -533,6 +533,37 @@ pub struct Outlook {
     /// What the mating theories say of the pair (配合理論), and the rating they come to.
     pub theories: Vec<Theory>,
     pub rating: String,
+    /// How the foal is likely to grow up.
+    pub growth: GrowthOutlook,
+}
+
+/// How likely a foal is to turn out each growth type, in percent.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct GrowthOutlook {
+    pub early: u32,
+    pub normal: u32,
+    pub late: u32,
+}
+
+/// What a pair's foals turn out like, from the same draw as the foal's own growth.
+fn growth_outlook(sire_factor: f64, dam_factor: f64) -> GrowthOutlook {
+    const DRAWS: u32 = 1000;
+    let mut rng = Rng::new(0x6807);
+    let (mut early, mut late) = (0, 0);
+    for _ in 0..DRAWS {
+        match growth(sire_factor, dam_factor, &mut rng).1 {
+            "早熟" => early += 1,
+            "晩成" => late += 1,
+            _ => {}
+        }
+    }
+    let percent = |n: u32| (n as f64 * 100.0 / DRAWS as f64).round() as u32;
+    let (early, late) = (percent(early), percent(late));
+    GrowthOutlook {
+        early,
+        normal: 100 - early - late,
+        late,
+    }
 }
 
 /// A mating theory the pair meets, and the points it is worth.
@@ -597,6 +628,7 @@ pub fn outlook(sire: &BloodHorse, dam: &BloodHorse, db: &HashMap<u32, BloodHorse
     let vol = inbreed_volume(sire.id, dam.id, db);
     let met = theories(sire, dam, db);
     Outlook {
+        growth: growth_outlook(sire.growth_factor, dam.growth_factor),
         rating: rating_for(met.iter().map(|t| t.points).sum()),
         theories: met,
         inbreed_vol: (vol * 10000.0).round() / 10000.0,
@@ -2342,5 +2374,40 @@ mod tests {
             }
         }
         assert!(STABLE_FOUNDERS.iter().all(|n| is_valid_name(n)));
+    }
+
+    #[test]
+    fn the_outlook_says_what_growth_the_foal_is_likely_to_have() {
+        let parent = |factor: f64, gender: Sex| {
+            let mut h = founders()[0].clone();
+            h.growth_factor = factor;
+            h.gender = gender;
+            h
+        };
+        let db = HashMap::new();
+        let early = outlook(&parent(0.1, Sex::Male), &parent(0.1, Sex::Female), &db).growth;
+        let late = outlook(&parent(0.9, Sex::Male), &parent(0.9, Sex::Female), &db).growth;
+        let mixed = outlook(&parent(0.1, Sex::Male), &parent(0.9, Sex::Female), &db).growth;
+        assert!(early.early > 80, "{early:?}");
+        assert!(late.late > 80, "{late:?}");
+        assert!(
+            mixed.normal > mixed.early && mixed.normal > mixed.late,
+            "{mixed:?}"
+        );
+        for g in [early, late, mixed] {
+            assert_eq!(g.early + g.normal + g.late, 100);
+        }
+    }
+
+    #[test]
+    fn foals_tend_to_take_after_their_parents_growth() {
+        let mut rng = Rng::new(9);
+        let share = |s: f64, d: f64, kind: &str, rng: &mut Rng| {
+            (0..1000).filter(|_| growth(s, d, rng).1 == kind).count()
+        };
+        assert!(share(0.1, 0.1, "早熟", &mut rng) > 800);
+        assert!(share(0.9, 0.9, "晩成", &mut rng) > 800);
+        // not always: a late pair can still have an ordinary foal
+        assert!(share(0.8, 0.8, "普通", &mut rng) > 50);
     }
 }

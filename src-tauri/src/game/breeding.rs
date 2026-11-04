@@ -483,6 +483,7 @@ impl Game {
             dirt,
             temper: temper_of(foal.stats.temper),
             sex: foal.gender,
+            gelded: false,
             age,
             blood_id: foal.id,
             condition: self.roll_condition(),

@@ -600,3 +600,69 @@ fn a_field_finishes_a_second_or_three_apart() {
     let median = spreads[spreads.len() / 2];
     assert!((1.0..=3.0).contains(&median), "{median}");
 }
+
+// ---- the seasons (季節) ----
+
+#[test]
+fn a_horse_that_wilts_in_summer_does_worse_in_a_summer_race() {
+    let g = Game::new();
+    let mut race = calendar::shared()
+        .races
+        .iter()
+        .find(|r| r.week == 30)
+        .unwrap()
+        .clone();
+    let mut spec = g.race_spec(None).unwrap();
+    let wilting = (0..500)
+        .map(|n| format!("ウマ{n}"))
+        .find(|n| form::constitution(n) == form::Constitution::WiltsInSummer)
+        .unwrap();
+    spec.entrants[0].name = wilting.clone();
+    let speed = |spec: &RaceSpec| Game::runners_for(spec)[0].speed;
+    race.week = 10;
+    spec.race = Some(race.clone());
+    let spring = speed(&spec);
+    race.week = 30;
+    spec.race = Some(race);
+    assert!(speed(&spec) < spring);
+}
+
+#[test]
+fn the_free_race_has_no_season() {
+    let g = Game::new();
+    let spec = g.race_spec(None).unwrap();
+    let plain: Vec<u32> = spec
+        .entrants
+        .iter()
+        .map(|e| Game::run_stats(e, spec.surface, spec.distance, spec.track).0)
+        .collect();
+    let run: Vec<u32> = Game::runners_for(&spec).iter().map(|h| h.speed).collect();
+    assert_eq!(plain, run);
+}
+
+#[test]
+fn the_card_says_who_the_season_is_telling_on() {
+    let mut g = Game::new();
+    let r = calendar::shared()
+        .races
+        .iter()
+        .find(|r| r.week == 30 && r.grade == Grade::G3)
+        .unwrap()
+        .clone();
+    g.week = r.week;
+    let card = g.race_card(Some(&RaceKey::of(&r))).unwrap();
+    for e in &card.entrants {
+        assert_eq!(
+            e.season.as_deref(),
+            form::season_note(&e.name, 30),
+            "{}",
+            e.name
+        );
+    }
+    assert!(g
+        .race_card(None)
+        .unwrap()
+        .entrants
+        .iter()
+        .all(|e| e.season.is_none()));
+}

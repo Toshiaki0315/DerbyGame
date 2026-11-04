@@ -1,6 +1,6 @@
 // Work, rest and racing gear for the stable's horses.
 
-import { DIRT_LABEL, DIRT_WORDS, SEX_LABEL, gainText, recordText } from "../labels";
+import { DIRT_LABEL, DIRT_WORDS, sexLabel, gainText, recordText } from "../labels";
 import { AppView } from "../view";
 import { FormBadge, HorseIcon } from "../widgets";
 
@@ -17,7 +17,7 @@ export default function TrainTab({ app }: { app: AppView }) {
             {`調教やレースで疲労がたまり、1週ごとに少しずつ抜けます。疲労が${raceFatigueLimit}以上だとレースに出られず、${trainFatigueLimit}以上だと調教できません。疲れているとレースでも力を出し切れません。休養させるとその週は休みになり、疲労が大きく抜けます。`}
           </p>
           <p className="muted">
-            馬具はレースで付けるものです。メンコは周りの音を遮り、気性の荒い馬が掛かりにくくなります。シャドーロールは前に集中させ、出来のぶれが小さくなります。一度付けると外すまで付けたままです。
+            馬具はレースで付けるものです。ブリンカーは視界を絞り、少し速く走れますが掛かりやすくなります。メンコは周りの音を遮り、気性の荒い馬が掛かりにくくなります。シャドーロールは前に集中させ、出来のぶれが小さくなります。一度付けると外すまで付けたままです。
           </p>
           <p className="muted">
             {`お任せにした馬は、週が変わるたびに所属厩舎の調教師が調教します。一番低い能力を伸ばし、気性が荒ければ曳き運動、疲れていれば休養させます。どこまで追うかは調教師の傾向(スパルタ〜優しい)で変わります。費用は通常と同じで、所持金を${game.auto_keep_money ?? 0}残してその範囲で行います。結果は週が変わったときにお知らせします。`}
@@ -55,7 +55,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                       <span>{h.name}</span>
                     </div>
                     <div className="who-more">
-                      <span>{`${SEX_LABEL[h.sex]}${h.age ?? ""}`}</span>
+                      <span>{`${sexLabel(h)}${h.age ?? ""}`}</span>
                       <span>{trainers.find((t) => t.id === h.trainer)?.name ?? "-"}</span>
                       <span>{h.record ? recordText(h.record) : "-"}</span>
                     </div>
@@ -191,6 +191,16 @@ export default function TrainTab({ app }: { app: AppView }) {
                         onChange={() => toggleGear(h.name, h.gear, "shadow_roll")}
                       />
                       シャドーロール
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        aria-label={`${h.name}のブリンカー`}
+                        checked={h.gear?.blinkers ?? false}
+                        disabled={busy}
+                        onChange={() => toggleGear(h.name, h.gear, "blinkers")}
+                      />
+                      ブリンカー
                     </label>
                           {h.resting && <span className="resting">休養中</span>}
                           {h.away && (

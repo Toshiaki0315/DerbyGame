@@ -22,6 +22,22 @@ pub enum Venue {
     Kyoto,
     Hanshin,
     Kokura,
+    /// The local tracks, where the races open to all are run (交流重賞).
+    Oi,
+    Kawasaki,
+    Funabashi,
+    Sonoda,
+}
+
+impl Venue {
+    /// Whether this is a local track rather than one of the ten national courses.
+    #[cfg(test)]
+    pub fn is_local(self) -> bool {
+        matches!(
+            self,
+            Venue::Oi | Venue::Kawasaki | Venue::Funabashi | Venue::Sonoda
+        )
+    }
 }
 
 #[cfg(test)]
@@ -216,6 +232,10 @@ pub fn course_distances(venue: Venue, surface: Surface) -> &'static [u32] {
         (Hanshin, Dirt) => &[1200, 1400, 1800, 2000],
         (Kokura, Turf) => &[1200, 1800, 2000, 2600],
         (Kokura, Dirt) => &[1000, 1700, 2400],
+        (Oi, _) => &[1200, 1600, 1800, 2000],
+        (Kawasaki, _) => &[1400, 1600, 2000],
+        (Funabashi, _) => &[1200, 1600, 1800],
+        (Sonoda, _) => &[1400, 1700],
     }
 }
 
@@ -318,6 +338,16 @@ fn race_rows() -> Vec<Row> {
         (51, Hanshin, T, 1600, A2, false, WA, G1, "ジュニアマイルステークス"),
         (52, Nakayama, T, 2500, U3, false, WF, G1, "グランドフィナーレ記念"),
         (52, Nakayama, T, 2000, A2, false, WA, G1, "未来希望賞"),
+        // ---- 交流重賞, on the dirt of the local tracks
+        (6, Kawasaki, D, 2000, U4, false, WF, G1, "京浜ダート記念"),
+        (9, Funabashi, D, 1800, U4, false, WS, G3, "葛南ダートカップ"),
+        (18, Funabashi, D, 1600, U4, false, WF, G1, "新緑砂王マイル"),
+        (20, Kawasaki, D, 1600, U4, true, WS, G2, "京浜レディースカップ"),
+        (26, Oi, D, 2000, U4, false, WF, G1, "夏至ダート帝王賞"),
+        (28, Oi, D, 2000, A3, false, WA, G1, "砂の頂上決戦"),
+        (34, Sonoda, D, 1700, U3, false, WS, G3, "播磨ダートステークス"),
+        (40, Oi, D, 1200, U3, false, WS, G2, "湾岸スプリント"),
+        (51, Oi, D, 2000, U3, false, WF, G1, "帝都ダート大賞典"),
         // ---- G2
         (2, Kyoto, T, 2400, U4, false, WH, G2, "新年ハンデキャップ"),
         (4, Nakayama, T, 2200, U4, false, WS, G2, "冬晴ゴールドカップ"),
@@ -786,7 +816,7 @@ mod tests {
     #[test]
     fn every_race_is_held_during_a_meeting_at_its_course() {
         let c = cal();
-        for r in &c.races {
+        for r in c.races.iter().filter(|r| !r.venue.is_local()) {
             assert!(
                 c.venues_in_week(r.week).contains(&r.venue),
                 "{} is on week {} at {:?} but no meeting is on",
@@ -832,7 +862,7 @@ mod tests {
     #[test]
     fn grade_counts_match_the_shape_of_the_real_programme() {
         let c = cal();
-        assert_eq!(count(&c, Grade::G1), 24);
+        assert_eq!(count(&c, Grade::G1), 24 + 5); // and the 交流 G1s
         assert!(count(&c, Grade::G2) >= 25, "G2: {}", count(&c, Grade::G2));
         assert!(count(&c, Grade::G3) >= 50, "G3: {}", count(&c, Grade::G3));
         assert!(count(&c, Grade::Listed) >= 12);
@@ -851,7 +881,11 @@ mod tests {
     #[test]
     fn g1_line_up_matches_the_jra_pattern() {
         let c = cal();
-        let g1: Vec<&CalendarRace> = c.races.iter().filter(|r| r.grade == Grade::G1).collect();
+        let g1: Vec<&CalendarRace> = c
+            .races
+            .iter()
+            .filter(|r| r.grade == Grade::G1 && !r.venue.is_local())
+            .collect();
         let by_age = |a: AgeRule| g1.iter().filter(|r| r.eligibility.age == a).count();
         assert_eq!(by_age(AgeRule::Three), 7); // fillies' and colts' classics + mile
         assert_eq!(by_age(AgeRule::Two), 3);

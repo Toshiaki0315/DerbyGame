@@ -107,10 +107,12 @@ export function useBreeding(core: Core, show: RaceShow) {
   };
 
   const retireHorse = async (name: string) => {
-    if (!window.confirm(`${name}を引退させて繁殖入りさせますか? 引退した馬はレースに戻れません。`)) return;
+    const gelding = game?.field.find((h) => h.name === name)?.gelded;
+    const question = gelding ? `${name}を引退させますか? セン馬は繁殖入りできないので厩舎を去ります。` : `${name}を引退させて繁殖入りさせますか? 引退した馬はレースに戻れません。`;
+    if (!window.confirm(question)) return;
     await attempt(async () => {
       load(await invoke<GameState>("retire_horse", { name }));
-      setNotice(`${name}が引退し、繁殖入りしました。`);
+      setNotice(gelding ? `${name}が引退しました。` : `${name}が引退し、繁殖入りしました。`);
     }, true);
   };
 

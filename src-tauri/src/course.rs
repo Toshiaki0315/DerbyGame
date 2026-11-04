@@ -145,6 +145,10 @@ fn after_goal(venue: Venue, surface: Surface) -> f64 {
         Venue::Kokura => (87.0, 88.0),
         Venue::Sapporo => (21.0, 27.0),
         Venue::Hakodate => (102.0, 104.0),
+        Venue::Oi => (0.0, 40.0),
+        Venue::Kawasaki => (0.0, 30.0),
+        Venue::Funabashi => (0.0, 35.0),
+        Venue::Sonoda => (0.0, 25.0),
     };
     match surface {
         Surface::Turf => turf,
@@ -169,6 +173,22 @@ type CornersBy = &'static [(u32, u8)];
 
 /// The corners a race goes round, by course, surface and distance.
 const CORNERS: &[(Venue, Surface, CornersBy)] = &[
+    (
+        Venue::Oi,
+        Surface::Dirt,
+        &[(1200, 2), (1600, 2), (1800, 4), (2000, 4)],
+    ),
+    (
+        Venue::Kawasaki,
+        Surface::Dirt,
+        &[(1400, 4), (1600, 4), (2000, 6)],
+    ),
+    (
+        Venue::Funabashi,
+        Surface::Dirt,
+        &[(1200, 2), (1600, 2), (1800, 4)],
+    ),
+    (Venue::Sonoda, Surface::Dirt, &[(1400, 4), (1700, 4)]),
     (
         Venue::Chukyo,
         Surface::Dirt,
@@ -530,9 +550,63 @@ pub const COURSES: [Course; 10] = [
     },
 ];
 
+/// The local tracks, all dirt: their "turf" is the same dirt, and no race is run on it.
+/// The figures are approximate, not taken from the tracks' own course guides.
+pub const LOCAL_COURSES: [Course; 4] = [
+    Course {
+        venue: Venue::Oi,
+        name: "大井",
+        place: "東京都品川区",
+        turn: Turn::Right,
+        grass: Grass::Japanese,
+        finish_climb: false,
+        turf: track(386.0, 0.0, "1,600m", "386m", "0m"),
+        dirt: track(386.0, 0.0, "1,600m", "386m", "0m"),
+        features: "直線の長い右回りのダートコースです。",
+        suits: "長く良い脚を使える馬",
+    },
+    Course {
+        venue: Venue::Kawasaki,
+        name: "川崎",
+        place: "神奈川県川崎市",
+        turn: Turn::Left,
+        grass: Grass::Japanese,
+        finish_climb: false,
+        turf: track(300.0, 0.0, "1,200m", "300m", "0m"),
+        dirt: track(300.0, 0.0, "1,200m", "300m", "0m"),
+        features: "コーナーのきつい左回りの小回りコースです。",
+        suits: "器用に立ち回れる先行馬",
+    },
+    Course {
+        venue: Venue::Funabashi,
+        name: "船橋",
+        place: "千葉県船橋市",
+        turn: Turn::Left,
+        grass: Grass::Japanese,
+        finish_climb: false,
+        turf: track(308.0, 0.0, "1,400m", "308m", "0m"),
+        dirt: track(308.0, 0.0, "1,400m", "308m", "0m"),
+        features: "左回りで、スピードの出やすいコースです。",
+        suits: "スピードのある馬",
+    },
+    Course {
+        venue: Venue::Sonoda,
+        name: "園田",
+        place: "兵庫県尼崎市",
+        turn: Turn::Right,
+        grass: Grass::Japanese,
+        finish_climb: false,
+        turf: track(213.0, 0.0, "1,051m", "213m", "0m"),
+        dirt: track(213.0, 0.0, "1,051m", "213m", "0m"),
+        features: "直線の短い右回りの小回りコースです。",
+        suits: "早めに動ける先行馬",
+    },
+];
+
 pub fn course_of(venue: Venue) -> &'static Course {
     COURSES
         .iter()
+        .chain(&LOCAL_COURSES)
         .find(|c| c.venue == venue)
         .unwrap_or(&COURSES[0])
 }

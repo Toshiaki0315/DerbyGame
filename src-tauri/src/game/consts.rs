@@ -260,6 +260,13 @@ pub(super) const MAX_AGE: u8 = 10;
 /// Most horses racing for the stable at once.
 pub const STABLE_SIZE: usize = TRAINERS.len() * STABLE_CAPACITY;
 
+/// What gelding a colt costs (去勢).
+pub const GELDING_COST: u32 = 300;
+/// How many points calmer it makes a horse.
+pub const GELDING_CALM: u32 = 20;
+/// Weeks at pasture getting over it.
+pub const GELDING_WEEKS: u32 = 8;
+
 /// Most retired horses kept for breeding.
 pub const MAX_STUDS: usize = 6;
 

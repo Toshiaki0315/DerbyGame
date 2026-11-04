@@ -65,6 +65,63 @@ pub fn age_form(age: u8, peak_age: u8) -> f64 {
     }
 }
 
+/// How a horse takes the heat and the cold, fixed for the horse (季節の適性).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Constitution {
+    Hardy,
+    /// 夏負け.
+    WiltsInSummer,
+    /// 冬負け.
+    WiltsInWinter,
+    /// 夏に強い.
+    LovesSummer,
+}
+
+/// What a season the horse dislikes takes off its ability, and one it likes adds.
+const SEASON_LOSS: f64 = 0.03;
+const SEASON_GAIN: f64 = 0.01;
+
+/// A horse's constitution, from its name: the same name always gives the same answer.
+pub fn constitution(name: &str) -> Constitution {
+    let hash = name.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
+        (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3)
+    });
+    match crate::rivals::mix_seed(&[hash]) % 10 {
+        0 | 1 => Constitution::WiltsInSummer,
+        2 => Constitution::WiltsInWinter,
+        3 => Constitution::LovesSummer,
+        _ => Constitution::Hardy,
+    }
+}
+
+fn is_summer(week: u8) -> bool {
+    (27..=35).contains(&week)
+}
+
+fn is_winter(week: u8) -> bool {
+    matches!(week, 1..=8 | 49..=52)
+}
+
+/// Share of its ability a horse shows in this week of the year.
+pub fn season_form(name: &str, week: u8) -> f64 {
+    match constitution(name) {
+        Constitution::WiltsInSummer if is_summer(week) => 1.0 - SEASON_LOSS,
+        Constitution::WiltsInWinter if is_winter(week) => 1.0 - SEASON_LOSS,
+        Constitution::LovesSummer if is_summer(week) => 1.0 + SEASON_GAIN,
+        _ => 1.0,
+    }
+}
+
+/// What the season is doing to a horse this week, if anything.
+pub fn season_note(name: &str, week: u8) -> Option<&'static str> {
+    match constitution(name) {
+        Constitution::WiltsInSummer if is_summer(week) => Some("夏負け"),
+        Constitution::WiltsInWinter if is_winter(week) => Some("冬負け"),
+        Constitution::LovesSummer if is_summer(week) => Some("夏に強い"),
+        _ => None,
+    }
+}
+
 /// How a race distance sits against a horse's range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -268,5 +325,70 @@ mod tests {
             "\"too_long\""
         );
         assert_eq!(serde_json::to_string(&DistanceFit::Fit).unwrap(), "\"fit\"");
+    }
+
+    /// A name of each constitution, found by trying some.
+    fn named(wanted: Constitution) -> String {
+        (0..500)
+            .map(|n| format!("ウマ{n}"))
+            .find(|n| constitution(n) == wanted)
+            .unwrap()
+    }
+
+    #[test]
+    fn most_horses_do_not_mind_the_season() {
+        let names: Vec<String> = (0..1000).map(|n| format!("ウマ{n}")).collect();
+        let count = |c| names.iter().filter(|n| constitution(n) == c).count();
+        assert!(count(Constitution::Hardy) > 500);
+        for c in [
+            Constitution::WiltsInSummer,
+            Constitution::WiltsInWinter,
+            Constitution::LovesSummer,
+        ] {
+            assert!(count(c) > 50, "{c:?}");
+        }
+    }
+
+    #[test]
+    fn a_horse_keeps_its_constitution() {
+        assert_eq!(constitution("サクラフブキ"), constitution("サクラフブキ"));
+    }
+
+    #[test]
+    fn a_horse_that_wilts_in_summer_runs_below_itself_only_in_summer() {
+        let horse = named(Constitution::WiltsInSummer);
+        assert!(season_form(&horse, 30) < 1.0);
+        for week in [10, 26, 36, 45, 2] {
+            assert_eq!(season_form(&horse, week), 1.0, "week {week}");
+        }
+        assert_eq!(season_note(&horse, 30), Some("夏負け"));
+        assert_eq!(season_note(&horse, 10), None);
+    }
+
+    #[test]
+    fn a_horse_that_wilts_in_winter_runs_below_itself_only_in_winter() {
+        let horse = named(Constitution::WiltsInWinter);
+        for week in [1, 8, 49, 52] {
+            assert!(season_form(&horse, week) < 1.0, "week {week}");
+        }
+        assert_eq!(season_form(&horse, 30), 1.0);
+        assert_eq!(season_note(&horse, 2), Some("冬負け"));
+    }
+
+    #[test]
+    fn a_horse_that_loves_summer_runs_above_itself_then() {
+        let horse = named(Constitution::LovesSummer);
+        assert!(season_form(&horse, 30) > 1.0);
+        assert_eq!(season_form(&horse, 10), 1.0);
+        assert_eq!(season_note(&horse, 30), Some("夏に強い"));
+    }
+
+    #[test]
+    fn a_hardy_horse_takes_no_notice() {
+        let horse = named(Constitution::Hardy);
+        for week in 1..=52 {
+            assert_eq!(season_form(&horse, week), 1.0);
+            assert_eq!(season_note(&horse, week), None);
+        }
     }
 }

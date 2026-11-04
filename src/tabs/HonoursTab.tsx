@@ -106,6 +106,35 @@ export default function HonoursTab({ app }: { app: AppView }) {
             </tbody>
           </table>
         </section>
+        <section className="panel leading" aria-label="リーディング">
+          <h2>リーディング</h2>
+          <p className="muted">今年ここまでの勝利数です。カッコ内は自分の馬での勝利数です。</p>
+          <div className="leading-tables">
+            {([["騎手", game.leading?.jockeys], ["調教師", game.leading?.trainers], ["種牡馬", game.leading?.sires]] as const).map(([title, rows]) => (
+              <table key={title} aria-label={`${title}リーディング`}>
+                <thead>
+                  <tr><th>順位</th><th align="left">{title}</th><th>勝利</th></tr>
+                </thead>
+                <tbody>
+                  {(rows ?? []).slice(0, 5).map((r, i) => (
+                    <tr key={r.name}>
+                      <td align="center">{i + 1}</td>
+                      <td>{r.name}</td>
+                      <td align="center">{r.own_wins > 0 ? `${r.wins}(${r.own_wins})` : r.wins}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ))}
+          </div>
+          {(game.leading_years?.length ?? 0) > 0 && (
+            <ul className="leading-history" aria-label="過去のリーディング">
+              {[...game.leading_years!].reverse().slice(0, 5).map((y) => (
+                <li key={y.year}>{`${y.year}年目: 騎手 ${y.jockey} / 調教師 ${y.trainer} / 種牡馬 ${y.sire}`}</li>
+              ))}
+            </ul>
+          )}
+        </section>
         <section className="panel" aria-label="調教師の成績">
           <h2>調教師の成績</h2>
           <table className="training">

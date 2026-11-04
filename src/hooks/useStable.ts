@@ -30,10 +30,10 @@ export function useStable(core: Core, races: Races) {
   // put a メンコ or a シャドーロール on, or take it off (it stays until changed)
   const toggleGear = async (name: string, current: Gear | undefined, part: keyof Gear) => {
     setError("");
-    const next = { menko: current?.menko ?? false, shadow_roll: current?.shadow_roll ?? false };
+    const next = { menko: current?.menko ?? false, shadow_roll: current?.shadow_roll ?? false, blinkers: current?.blinkers ?? false };
     next[part] = !next[part];
     try {
-      load(await invoke<GameState>("set_gear", { horse: name, menko: next.menko, shadowRoll: next.shadow_roll }));
+      load(await invoke<GameState>("set_gear", { horse: name, menko: next.menko, shadowRoll: next.shadow_roll, blinkers: next.blinkers }));
       setCardVersion((v) => v + 1);
     } catch (e) {
       setError(String(e));
@@ -90,6 +90,15 @@ export function useStable(core: Core, races: Races) {
       setCardVersion((v) => v + 1);
     }, true);
 
+  const geldHorse = async (name: string, cost: number) => {
+    if (!window.confirm(`${name}を${cost}で去勢しますか? 気性は穏やかになりますが、繁殖入りやクラシック出走ができなくなります。元には戻せません。`)) return;
+    await attempt(async () => {
+      load(await invoke<GameState>("geld_horse", { name }));
+      setNotice(`${name}を去勢しました。しばらく放牧で休ませます。`);
+      setCardVersion((v) => v + 1);
+    }, true);
+  };
+
   const recallHorse = (name: string) =>
     attempt(async () => {
       load(await invoke<GameState>("recall_horse", { name }));
@@ -141,6 +150,7 @@ export function useStable(core: Core, races: Races) {
     setAllAuto,
     setAutoTraining,
     sendToPasture,
+    geldHorse,
     recallHorse,
     restHorse,
     goAbroad,

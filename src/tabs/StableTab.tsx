@@ -1,11 +1,11 @@
 // The trainers' stables and what they have to say.
 
-import { ORDER_LABELS, SEX_LABEL, bySide, recordText } from "../labels";
+import { ORDER_LABELS, sexLabel, bySide, recordText } from "../labels";
 import { AppView } from "../view";
 import { HorseIcon, SideOptions } from "../widgets";
 
 export default function StableTab({ app }: { app: AppView }) {
-  const { abroadHorse, acceptAdvice, advice, busy, game, goAbroad, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
+  const { abroadHorse, acceptAdvice, advice, busy, game, geldHorse, goAbroad, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
   return (
       <main role="tabpanel" aria-label="厩舎">
         <section className="panel">
@@ -82,7 +82,7 @@ export default function StableTab({ app }: { app: AppView }) {
                         <li key={h.name}>
                           <HorseIcon name={h.name} coat={h.blood?.coat_color} />
                           <strong>{h.name}</strong>
-                          <span>{`${SEX_LABEL[h.sex]}${h.age ?? ""}`}</span>
+                          <span>{`${sexLabel(h)}${h.age ?? ""}`}</span>
                           <span className="record">{h.record ? recordText(h.record) : "-"}</span>
                           {(() => {
                             const said = advice.find((a) => a.horse === h.name);
@@ -112,7 +112,17 @@ export default function StableTab({ app }: { app: AppView }) {
                             >
                               {`売却 ${h.sale_price}`}
                             </button>
+                            
                           )}
+                          {h.sex === "male" && !h.gelded && (
+                              <button
+                                aria-label={`${h.name}を去勢`}
+                                disabled={busy || !!h.away}
+                                onClick={() => geldHorse(h.name, game.gelding_cost ?? 0)}
+                              >
+                                {`去勢 ${game.gelding_cost ?? 0}`}
+                              </button>
+                            )}
                           <label className="pick">騎手
                           <select
                             aria-label={`${h.name}の騎手`}

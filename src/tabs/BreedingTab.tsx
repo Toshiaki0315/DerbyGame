@@ -84,6 +84,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
                   <p key={t.name}>{`${t.name} +${t.points}`}</p>
                 ))}
                 <p>{`近親度(配合): ${inbreedText(outlook.inbreed_vol)}`}</p>
+                {outlook.growth && <p>{`仔の成長型の見込み: 早熟${outlook.growth.early}% / 普通${outlook.growth.normal}% / 晩成${outlook.growth.late}%`}</p>}
                 {outlook.penalty > 0 && <p>{`気性への影響: -${outlook.penalty.toFixed(1)}`}</p>}
                 <p>
                   {`相性(ニック): ${outlook.nick ? `${statLabel(outlook.nick.stat)}+${outlook.nick.bonus}` : "なし"}`}

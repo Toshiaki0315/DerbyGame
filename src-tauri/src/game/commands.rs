@@ -14,6 +14,7 @@ pub fn handler<R: tauri::Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
         breed_horses,
         retire_horse,
         set_gear,
+        geld_horse,
         rest_horse,
         set_auto_training,
         set_auto_entry,
@@ -327,10 +328,26 @@ pub fn set_gear(
     horse: String,
     menko: bool,
     shadow_roll: bool,
+    blinkers: bool,
 ) -> Result<GameState, String> {
     let mut g = store.0.lock().unwrap();
-    g.set_gear(&horse, Gear { menko, shadow_roll })
-        .map_err(|e| e.to_string())?;
+    g.set_gear(
+        &horse,
+        Gear {
+            menko,
+            shadow_roll,
+            blinkers,
+        },
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(g.state())
+}
+
+/// Gelds a colt (去勢).
+#[tauri::command]
+pub fn geld_horse(store: tauri::State<GameStore>, name: String) -> Result<GameState, String> {
+    let mut g = store.0.lock().unwrap();
+    g.geld(&name).map_err(|e| e.to_string())?;
     Ok(g.state())
 }
 

@@ -12,7 +12,7 @@ export const recordText = (r: RaceRecord) => `${r.starts}戦${r.wins}勝・${cla
 
 /** The gear a runner wears, in words ("メンコ・シャドーロール"), or "" for none. */
 export const gearWords = (g?: Gear | null) =>
-  [g?.menko ? "メンコ" : null, g?.shadow_roll ? "シャドーロール" : null].filter(Boolean).join("・");
+  [g?.menko ? "メンコ" : null, g?.shadow_roll ? "シャドーロール" : null, g?.blinkers ? "ブリンカー" : null].filter(Boolean).join("・");
 
 export const statLabel = (stat: string) => STAT_LABELS.find((x) => x.key === stat)?.label ?? stat;
 
@@ -78,6 +78,9 @@ export const TABS: { id: TabId; label: string }[] = [
 ];
 
 export const SEX_LABEL: Record<Sex, string> = { male: "牡", female: "牝" };
+
+/** 牡, 牝 or セ for a gelding. */
+export const sexLabel = (h: { sex: Sex; gelded?: boolean }) => (h.gelded ? "セ" : SEX_LABEL[h.sex]);
 
 export const KIND_LABEL: Record<BetKind, string> = {
   win: "単勝",

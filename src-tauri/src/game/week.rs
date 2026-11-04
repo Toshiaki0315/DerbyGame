@@ -34,7 +34,9 @@ impl Game {
         if self.week > calendar::WEEKS_PER_YEAR {
             self.week = 1;
             self.choose_horse_of_the_year();
+            self.close_leading();
             self.year += 1;
+            self.change_staff();
             self.trial_rights.retain(|t| t.year == self.year);
             self.age_the_stars();
             for h in &mut self.field {

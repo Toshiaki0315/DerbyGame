@@ -26,9 +26,11 @@ mod breeding;
 pub mod commands;
 mod consts;
 mod honours;
+mod leading;
 mod racing;
 mod save;
 mod stable;
+mod staff;
 mod state;
 #[cfg(test)]
 mod tests;
@@ -118,6 +120,18 @@ pub struct Game {
     /// How each trainer has done with the stable's horses, by trainer id.
     #[serde(default)]
     trainer_records: Vec<TrainerRecord>,
+    /// Everyone who has ridden in the game's time, retired or not.
+    #[serde(default)]
+    jockey_staff: Vec<Staff>,
+    /// Everyone who has had a stable in the game's time, retired or not.
+    #[serde(default)]
+    trainer_staff: Vec<Staff>,
+    /// The stable's own wins this year.
+    #[serde(default)]
+    year_wins: YearWins,
+    /// Who led the years gone by.
+    #[serde(default)]
+    leading_years: Vec<LeadingYear>,
 }
 
 pub struct GameStore(pub Mutex<Game>);
@@ -175,9 +189,14 @@ impl Game {
             stars: vec![],
             awards: vec![],
             hall: vec![],
-            trainer_records: vec![TrainerRecord::default(); TRAINERS.len()],
+            trainer_records: vec![TrainerRecord::default(); trainer::ALL_TRAINERS],
+            jockey_staff: vec![],
+            trainer_staff: vec![],
+            year_wins: YearWins::default(),
+            leading_years: vec![],
             field,
         };
+        game.first_staff();
         game.link_blood();
         game.set_tempers_from_records();
         game.set_legs_from_blood();

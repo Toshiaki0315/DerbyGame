@@ -375,6 +375,7 @@ fn rival_gear(rng: &mut Rng, temper: u32) -> Gear {
     Gear {
         menko: temper < 40 && rng.chance(0.5),
         shadow_roll: rng.chance(0.2),
+        ..Gear::default()
     }
 }
 

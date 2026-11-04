@@ -127,6 +127,7 @@ impl ListsOfVersion1 {
                 dirt: dirts[i],
                 temper: tempers[i],
                 sex: sexes[i],
+                gelded: false,
                 age: ages[i],
                 blood_id: blood_ids[i],
                 condition: conditions[i],
@@ -196,8 +197,11 @@ impl Game {
                 "セーブデータが不正です: 繁殖馬と血統データベースの対応が一致しません".into(),
             );
         }
-        if game.trainer_records.is_empty() {
-            game.trainer_records = vec![TrainerRecord::default(); TRAINERS.len()];
+        // a save may be from before there were trainers to come
+        game.trainer_records
+            .resize(trainer::ALL_TRAINERS, TrainerRecord::default());
+        if game.jockey_staff.is_empty() || game.trainer_staff.is_empty() {
+            game.first_staff();
         }
         if game.stars.is_empty() {
             game.stars = game.first_stars();
@@ -216,7 +220,7 @@ impl Game {
         if game
             .field
             .iter()
-            .any(|h| h.trainer as usize >= TRAINERS.len())
+            .any(|h| h.trainer as usize >= trainer::ALL_TRAINERS)
         {
             return Err("セーブデータが不正です: いない調教師の厩舎に預けられた馬がいます".into());
         }

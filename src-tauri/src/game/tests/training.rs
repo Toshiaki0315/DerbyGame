@@ -315,6 +315,7 @@ fn a_horse_races_in_the_gear_it_is_given_until_it_is_changed() {
     let both = Gear {
         menko: true,
         shadow_roll: true,
+        ..Gear::default()
     };
     g.set_gear(&name, both).unwrap();
     assert_eq!(g.stable_entrant(0).gear, both);
@@ -344,6 +345,7 @@ fn the_card_shows_everyones_gear_and_the_odds_take_it_into_account() {
         Gear {
             menko: true,
             shadow_roll: false,
+            ..Gear::default()
         },
     )
     .unwrap();
@@ -374,6 +376,7 @@ fn gear_is_kept_in_a_save_and_old_saves_race_without_any() {
         Gear {
             menko: false,
             shadow_roll: true,
+            ..Gear::default()
         },
     )
     .unwrap();
@@ -401,6 +404,7 @@ fn a_foal_starts_without_gear() {
         Gear {
             menko: true,
             shadow_roll: true,
+            ..Gear::default()
         },
     )
     .unwrap();
@@ -792,4 +796,24 @@ fn a_foal_starts_with_the_trainer_not_in_charge_and_a_retiree_drops_out() {
     if g.field.iter().any(|h| h.name == name) {
         g.retire(&name).unwrap();
     }
+}
+
+// ---- ブリンカー ----
+
+#[test]
+fn blinkers_are_kept_with_the_rest_of_the_gear_and_old_gear_has_none() {
+    let mut g = Game::new();
+    let name = g.field[0].name.clone();
+    let gear = Gear {
+        blinkers: true,
+        ..Gear::default()
+    };
+    g.set_gear(&name, gear).unwrap();
+    assert!(
+        Game::from_json(&g.to_json()).unwrap().field[0]
+            .gear
+            .blinkers
+    );
+    let old: Gear = serde_json::from_str(r#"{"menko":true,"shadow_roll":false}"#).unwrap();
+    assert!(old.menko && !old.blinkers);
 }

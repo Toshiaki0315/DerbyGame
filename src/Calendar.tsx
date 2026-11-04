@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type Venue =
   | "sapporo" | "hakodate" | "fukushima" | "niigata" | "tokyo"
-  | "nakayama" | "chukyo" | "kyoto" | "hanshin" | "kokura";
+  | "nakayama" | "chukyo" | "kyoto" | "hanshin" | "kokura"
+  | "oi" | "kawasaki" | "funabashi" | "sonoda";
 export type Grade = "g1" | "g2" | "g3" | "listed" | "open" | "win3" | "win2" | "win1" | "maiden" | "debut";
 export type AgeRule = "two" | "three" | "three_up" | "four_up";
 export type WeightRule = "age" | "fixed" | "allowance" | "handicap";
@@ -37,7 +38,15 @@ const WEEKS = 52;
 export const VENUE_LABEL: Record<Venue, string> = {
   sapporo: "札幌", hakodate: "函館", fukushima: "福島", niigata: "新潟", tokyo: "東京",
   nakayama: "中山", chukyo: "中京", kyoto: "京都", hanshin: "阪神", kokura: "小倉",
+  oi: "大井", kawasaki: "川崎", funabashi: "船橋", sonoda: "園田",
 };
+
+const LOCAL_VENUES: Venue[] = ["oi", "kawasaki", "funabashi", "sonoda"];
+const LOCAL_GRADE: Partial<Record<Grade, string>> = { g1: "JpnI", g2: "JpnII", g3: "JpnIII" };
+
+/** A race's grade as it is written: races on the local tracks are Jpn grades. */
+export const gradeLabel = (r: { grade: Grade; venue: Venue }) =>
+  (LOCAL_VENUES.includes(r.venue) && LOCAL_GRADE[r.grade]) || GRADE_LABEL[r.grade];
 export const GRADE_LABEL: Record<Grade, string> = {
   g1: "G1", g2: "G2", g3: "G3", listed: "L", open: "OP",
   win3: "3勝", win2: "2勝", win1: "1勝", maiden: "未勝利", debut: "新馬",
@@ -176,7 +185,7 @@ function Calendar({ data: provided }: { data?: CalendarData }) {
               {races.map((r) => (
                 <tr key={`${r.day}-${r.venue}-${r.race_no}`}>
                   <td>{`${DAY_LABEL[r.day]} ${r.race_no}R`}</td>
-                  <td align="center"><span className={`grade ${r.grade}`}>{GRADE_LABEL[r.grade]}</span></td>
+                  <td align="center"><span className={`grade ${r.grade}`}>{gradeLabel(r)}</span></td>
                   <td className="name">{r.name}</td>
                   <td align="center">{VENUE_LABEL[r.venue]}</td>
                   <td align="center">{`${SURFACE_LABEL[r.surface]}${r.distance}m`}</td>

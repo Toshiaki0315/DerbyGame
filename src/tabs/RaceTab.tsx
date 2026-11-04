@@ -1,7 +1,7 @@
 // The week's races: the card, who is entered, and the race itself.
 
-import { GRADE_LABEL, SURFACE_LABEL, VENUE_LABEL, conditionText, monthOfWeek } from "../Calendar";
-import { DEBUT_AGE, DIRT_LABEL, DIRT_WORDS, FIT_MARK, FIT_RATING_MARK, FIT_WORDS, FREE_RACE, GROWTH_MARK, GROWTH_WORDS, SEX_LABEL, STYLE_WORDS, TRACK_LABEL, WEATHER_LABEL, badTrackMark, fitReasons, gearWords, isYoung, raceValue, recordText, starRecord, temperMark } from "../labels";
+import { SURFACE_LABEL, VENUE_LABEL, conditionText, gradeLabel, monthOfWeek } from "../Calendar";
+import { DEBUT_AGE, DIRT_LABEL, DIRT_WORDS, FIT_MARK, FIT_RATING_MARK, FIT_WORDS, FREE_RACE, GROWTH_MARK, GROWTH_WORDS, sexLabel, STYLE_WORDS, TRACK_LABEL, WEATHER_LABEL, badTrackMark, fitReasons, gearWords, isYoung, raceValue, recordText, starRecord, temperMark } from "../labels";
 import BetPanel from "./BetPanel";
 import RacePanel from "./RacePanel";
 import { AppView } from "../view";
@@ -22,7 +22,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
             <optgroup key={label} label={label}>
               {races.map((r) => (
                 <option key={raceValue(r)} value={raceValue(r)}>
-                  {`${r.race_no}R ${GRADE_LABEL[r.grade]} ${r.name}(${SURFACE_LABEL[r.surface]}${r.distance}m)${
+                  {`${r.race_no}R ${gradeLabel(r)} ${r.name}(${SURFACE_LABEL[r.surface]}${r.distance}m)${
                     canRun(r) ? " ★出走可" : ""
                   }`}
                 </option>
@@ -39,7 +39,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
         <h2>出走表</h2>
         {chosenRace && (
           <p className="race-info">
-            <span className={`grade ${chosenRace.grade}`}>{GRADE_LABEL[chosenRace.grade]}</span>
+            <span className={`grade ${chosenRace.grade}`}>{gradeLabel(chosenRace)}</span>
             <strong>{chosenRace.name}</strong>
             <span>{`${VENUE_LABEL[chosenRace.venue]} ${SURFACE_LABEL[chosenRace.surface]}${chosenRace.distance}m`}</span>
             <span>{conditionText(chosenRace)}</span>
@@ -137,6 +137,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                   <GateBadge index={i} count={runners.length} name={h.name} />
                   {h.name}
                   {h.mine && <span className="mine" aria-label="自馬">★</span>}
+                  {h.season && <span className="season-note">{h.season}</span>}
                   {h.star && (() => {
                     const known = game.stars?.find((x) => x.name === h.name);
                     return (
@@ -146,7 +147,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                     );
                   })()}
                 </td>
-                <td align="center">{`${SEX_LABEL[h.sex]}${h.age ?? ""}`}</td>
+                <td align="center">{`${sexLabel(h)}${h.age ?? ""}`}</td>
                 <td align="center">{h.speed}</td>
                 <td align="center">{h.stamina}</td>
                 <td align="center">{h.power ?? "-"}</td>
@@ -159,6 +160,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                     <span className="gear" aria-label={`馬具: ${gearWords(h.gear)}`} title={gearWords(h.gear)}>
                       {h.gear?.menko && <span className="gear-mark menko">メ</span>}
                       {h.gear?.shadow_roll && <span className="gear-mark shadow">シ</span>}
+                      {h.gear?.blinkers && <span className="gear-mark blinkers">ブ</span>}
                     </span>
                   ) : (
                     "-"
