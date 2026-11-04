@@ -15,6 +15,11 @@ import {
   starRecord,
   statLabel,
   temperMark,
+  KIND_LABEL,
+  KIND_ORDERED,
+  KIND_PICKS,
+  WEATHER_LABEL,
+  resultLine,
 } from "./labels";
 
 describe("the words the screens share", () => {
@@ -94,5 +99,24 @@ describe("the words the screens share", () => {
     expect(signed(5)).toBe("+5");
     expect(signed(0)).toBe("0");
     expect(signed(-5)).toBe("-5");
+  });
+});
+
+describe("race day labels", () => {
+  it("names every kind of weather", () => {
+    expect(WEATHER_LABEL).toEqual({ sunny: "晴", cloudy: "曇", light_rain: "小雨", rain: "雨", snow: "雪" });
+  });
+
+  it("knows the wide ticket", () => {
+    expect(KIND_LABEL.wide).toBe("ワイド");
+    expect(KIND_PICKS.wide).toBe(2);
+    expect(KIND_ORDERED.wide).toBe(false);
+  });
+
+  it("writes a result with its margin and popularity when it has them", () => {
+    const r = { rank: 2, name: "Fast", finish_time: 60.5, margin: "クビ" };
+    expect(resultLine(r, 3)).toBe("2着 Fast クビ (60.50秒・3番人気)");
+    expect(resultLine({ ...r, margin: "" }, undefined)).toBe("2着 Fast (60.50秒)");
+    expect(resultLine({ rank: 1, name: "Fast", finish_time: 60.5 }, undefined)).toBe("1着 Fast (60.50秒)");
   });
 });

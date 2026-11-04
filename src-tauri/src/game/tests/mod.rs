@@ -217,6 +217,7 @@ fn finish(names: &[&str]) -> Vec<RaceResult> {
             rank: i as u32 + 1,
             name: n.to_string(),
             finish_time: 60.0 + i as f64,
+            margin: String::new(),
         })
         .collect()
 }

@@ -4,7 +4,7 @@ import { SURFACE_LABEL } from "../Calendar";
 import CourseMap, { MAP_HEIGHT, MAP_WIDTH } from "../CourseMap";
 import { COURSE_SHAPES, courseShape, shapeKey } from "../courseShapes";
 import { gateForRunner } from "../gates";
-import { HISTORY_SHOWN, KIND_LABEL, TRACK_LABEL, signed } from "../labels";
+import { HISTORY_SHOWN, KIND_LABEL, TRACK_LABEL, WEATHER_LABEL, resultLine, signed } from "../labels";
 import { finishView, gateSpot } from "../raceShow";
 import { AppView } from "../view";
 import { HorseIcon } from "../widgets";
@@ -25,6 +25,7 @@ export default function RacePanel({ app }: { app: AppView }) {
                 course.layout ? `${course.name}(${course.layout})` : course.name,
                 `${SURFACE_LABEL[shownCard.surface]}${shownCard.distance}m`,
                 !course.straight_course && course.turn,
+                shownCard.weather && WEATHER_LABEL[shownCard.weather],
                 shownCard.track && TRACK_LABEL[shownCard.track],
               ]
                 .filter(Boolean)
@@ -172,7 +173,7 @@ export default function RacePanel({ app }: { app: AppView }) {
           <ol>
             {outcome.results.map((r) => (
               <li key={r.name} className={r.rank === 1 ? "first" : ""}>
-                {`${r.rank}着 ${r.name} (${r.finish_time.toFixed(2)}秒)`}
+                {resultLine(r, ranCard?.entrants.find((e) => e.name === r.name)?.popularity)}
               </li>
             ))}
           </ol>

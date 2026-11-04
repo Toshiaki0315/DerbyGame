@@ -695,13 +695,14 @@ pub struct HorseEntry {
     pub blood: Option<BloodTraits>,
 }
 
-/// The kind of ticket: 単勝, 複勝, 馬単, 馬連, 三連単 or 三連複 (see `bets`).
+/// The kind of ticket: 単勝, 複勝, ワイド, 馬単, 馬連, 三連単 or 三連複 (see `bets`).
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BetKind {
     #[default]
     Win,
     Place,
+    Wide,
     Exacta,
     Quinella,
     Trifecta,
@@ -945,6 +946,8 @@ pub struct CardEntry {
     pub star: bool,
     pub odds: f64,
     pub place_odds: f64,
+    /// Its place in the betting (人気), from its win odds.
+    pub popularity: u32,
 }
 
 /// The field for a race with its odds, as shown before betting.
@@ -960,6 +963,8 @@ pub struct RaceCard {
     pub surface: Surface,
     /// Track condition (馬場状態) on the day.
     pub track: TrackCondition,
+    /// The weather on the day (天候).
+    pub weather: Weather,
     pub entrants: Vec<CardEntry>,
     /// Every horse in the stable: whether it may run in this race and whether it is entered.
     pub my_horses: Vec<MyHorse>,

@@ -215,15 +215,25 @@ impl Game {
 
     /// Track condition at a course on a day of the current week (the same for every race there).
     pub fn track_for(&self, day: Day, venue: Venue) -> TrackCondition {
-        let seed = rivals::mix_seed(&[
+        track::forecast(self.race_day_seed(day, venue), self.week)
+    }
+
+    /// The weather at a course on a day of the current week: it goes with the track
+    /// and has no effect of its own.
+    pub fn weather_for(&self, day: Day, venue: Venue) -> Weather {
+        let seed = rivals::mix_seed(&[self.race_day_seed(day, venue), 0x5CA1]);
+        track::weather_on(self.track_for(day, venue), seed, self.week)
+    }
+
+    fn race_day_seed(&self, day: Day, venue: Venue) -> u64 {
+        rivals::mix_seed(&[
             self.world_seed,
             self.year as u64,
             self.week as u64,
             day as u64,
             venue as u64,
             0x7AC4,
-        ]);
-        track::forecast(seed, self.week)
+        ])
     }
 
     /// The race on this week's card at this place in the programme.
@@ -521,6 +531,8 @@ impl Game {
         let (race, slot) = self.race_and_slot(key)?;
         let spec = self.race_spec(key)?;
         let table = Self::odds_table_for(&spec);
+        let win_odds: Vec<f64> = table.iter().map(|t| t.0).collect();
+        let popularity = bets::popularity(&win_odds);
         let eligible = self.eligible_horses(&race);
         let registered = self.registered_horses(&slot, &race);
         let (nominated, gate) = self.nominations(&race).map_or(
@@ -531,6 +543,10 @@ impl Game {
             distance: spec.distance,
             surface: spec.surface,
             track: spec.track,
+            weather: spec
+                .race
+                .as_ref()
+                .map_or(Weather::Sunny, |r| self.weather_for(r.day, r.venue)),
             my_horses: self
                 .field
                 .iter()
@@ -582,7 +598,8 @@ impl Game {
                 .entrants
                 .iter()
                 .zip(table)
-                .map(|(e, (odds, place_odds))| CardEntry {
+                .zip(popularity)
+                .map(|((e, (odds, place_odds)), popularity)| CardEntry {
                     name: e.name.clone(),
                     speed: e.speed,
                     stamina: e.stamina,
@@ -609,6 +626,7 @@ impl Game {
                     trainer_fit: e.trainer_distance.is_some_and(|d| d.favours(spec.distance)),
                     odds,
                     place_odds,
+                    popularity,
                 })
                 .collect(),
             race: spec.race,

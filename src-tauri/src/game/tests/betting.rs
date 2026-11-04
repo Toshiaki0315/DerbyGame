@@ -4,9 +4,10 @@ use super::*;
 
 // ---- betting tickets: 単勝 複勝 馬単 馬連 三連単 三連複 ----
 
-const ALL_KINDS: [BetKind; 6] = [
+const ALL_KINDS: [BetKind; 7] = [
     BetKind::Win,
     BetKind::Place,
+    BetKind::Wide,
     BetKind::Exacta,
     BetKind::Quinella,
     BetKind::Trifecta,
@@ -1060,4 +1061,64 @@ fn the_json_shapes_for_tickets_match_what_the_ui_expects() {
         let s: BetStyle = serde_json::from_str(&format!("\"{style}\"")).unwrap();
         assert!(matches!(s, BetStyle::Box | BetStyle::Flow));
     }
+}
+
+// ---- ワイド ----
+
+#[test]
+fn wide_odds_are_shorter_than_quinella_odds_on_the_same_horses() {
+    let g = Game::new();
+    let n = field_names(&g);
+    let picks = [n[0].clone(), n[1].clone()];
+    let wide = g.quote_bet(None, BetKind::Wide, &picks).unwrap();
+    let quinella = g.quote_bet(None, BetKind::Quinella, &picks).unwrap();
+    assert!(wide < quinella, "{wide} against {quinella}");
+    assert!(wide >= 1.1);
+}
+
+#[test]
+fn a_wide_ticket_on_the_first_and_third_pays_and_on_the_first_and_fourth_does_not() {
+    let g = Game::new();
+    let order = free_order(5);
+    let hit = strs(&[&order[0], &order[2]]);
+    let miss = strs(&[&order[0], &order[3]]);
+    let mut paid = g.clone();
+    let out = paid.play_combo(None, &hit, 10, 5, BetKind::Wide).unwrap();
+    assert!(out.won);
+    assert_eq!(
+        out.payout as f64,
+        (10.0 * g.quote_bet(None, BetKind::Wide, &hit).unwrap()).round()
+    );
+    let mut lost = g.clone();
+    assert!(
+        !lost
+            .play_combo(None, &miss, 10, 5, BetKind::Wide)
+            .unwrap()
+            .won
+    );
+}
+
+#[test]
+fn wide_is_written_as_the_screen_expects() {
+    assert_eq!(serde_json::to_value(BetKind::Wide).unwrap(), "wide");
+}
+
+// ---- 人気 ----
+
+#[test]
+fn the_card_says_how_popular_each_horse_is_from_its_win_odds() {
+    let g = Game::new();
+    let card = g.race_card(None).unwrap();
+    for a in &card.entrants {
+        for b in &card.entrants {
+            assert_eq!(
+                a.popularity < b.popularity,
+                a.odds < b.odds,
+                "{} {}",
+                a.name,
+                b.name
+            );
+        }
+    }
+    assert!(card.entrants.iter().any(|e| e.popularity == 1));
 }

@@ -2,7 +2,7 @@
 
 import { STAT_LABELS } from "./Bloodline";
 import { CalendarRace } from "./Calendar";
-import { Ability, BetKind, Condition, CourseFit, Gear, RaceKey, RaceRecord, RunStyle, RunningStyle, Sex, Star, TabId, Track, WorkoutInfo } from "./types";
+import { Ability, BetKind, Condition, CourseFit, Gear, RaceKey, RaceRecord, RaceResult, RunStyle, RunningStyle, Sex, Star, TabId, Track, Weather, WorkoutInfo } from "./types";
 
 /** The class a record puts a horse in. */
 export const classOf = (r: RaceRecord) =>
@@ -82,6 +82,7 @@ export const SEX_LABEL: Record<Sex, string> = { male: "牡", female: "牝" };
 export const KIND_LABEL: Record<BetKind, string> = {
   win: "単勝",
   place: "複勝",
+  wide: "ワイド",
   exacta: "馬単",
   quinella: "馬連",
   trifecta: "三連単",
@@ -91,6 +92,7 @@ export const KIND_LABEL: Record<BetKind, string> = {
 export const KIND_OPTIONS: { value: BetKind; label: string }[] = [
   { value: "win", label: "単勝(1着)" },
   { value: "place", label: "複勝" },
+  { value: "wide", label: "ワイド(2頭が3着以内)" },
   { value: "exacta", label: "馬単(1着→2着の順)" },
   { value: "quinella", label: "馬連(1・2着、順不問)" },
   { value: "trifecta", label: "三連単(1→2→3着の順)" },
@@ -98,10 +100,10 @@ export const KIND_OPTIONS: { value: BetKind; label: string }[] = [
 ];
 
 /** How many horses a ticket picks, and whether the order matters. */
-export const KIND_PICKS: Record<BetKind, number> = { win: 1, place: 1, exacta: 2, quinella: 2, trifecta: 3, trio: 3 };
+export const KIND_PICKS: Record<BetKind, number> = { win: 1, place: 1, wide: 2, exacta: 2, quinella: 2, trifecta: 3, trio: 3 };
 
 export const KIND_ORDERED: Record<BetKind, boolean> = {
-  win: false, place: false, exacta: true, quinella: false, trifecta: true, trio: false,
+  win: false, place: false, wide: false, exacta: true, quinella: false, trifecta: true, trio: false,
 };
 
 export const ORDERED_SLOTS = ["1着", "2着", "3着"];
@@ -155,6 +157,12 @@ export const COAT_COLOURS: Record<string, { body: string; mane: string }> = {
 export const DEFAULT_COAT = "鹿毛";
 
 export const TRACK_LABEL: Record<Track, string> = { good: "良", soft: "稍重", yielding: "重", heavy: "不良" };
+
+export const WEATHER_LABEL: Record<Weather, string> = { sunny: "晴", cloudy: "曇", light_rain: "小雨", rain: "雨", snow: "雪" };
+
+/** A line of the result: "2着 名前 クビ (60.50秒・3番人気)". */
+export const resultLine = (r: RaceResult, popularity: number | undefined) =>
+  `${r.rank}着 ${r.name}${r.margin ? ` ${r.margin}` : ""} (${r.finish_time.toFixed(2)}秒${popularity ? `・${popularity}番人気` : ""})`;
 
 /** A symbol for how well a horse copes with a heavy track (0-100). */
 /** Age at which horses retire to stud at the turn of the year (as the backend's RETIRE_AGE). */

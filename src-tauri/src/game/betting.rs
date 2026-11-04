@@ -181,6 +181,7 @@ impl Game {
         }
         match kind {
             BetKind::Exacta | BetKind::Trifecta => top[..n] == *idx,
+            BetKind::Wide => idx.iter().all(|i| top.contains(i)),
             _ => idx.iter().all(|i| top[..n].contains(i)),
         }
     }

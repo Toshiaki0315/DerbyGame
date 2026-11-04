@@ -13,7 +13,7 @@ use crate::horse::{Horse, Pedigree};
 use crate::jockey::{self, JockeyInfo, Ride, JOCKEYS};
 use crate::race::{self, Gear, Race, RaceResult, Style, Traits};
 use crate::rivals::{self, Entrant, Star};
-use crate::track::{self, TrackCondition};
+use crate::track::{self, TrackCondition, Weather};
 use crate::trainer::{self, TrainerInfo, STABLE_CAPACITY, TRAINERS};
 use crate::weight;
 use serde::{Deserialize, Serialize};

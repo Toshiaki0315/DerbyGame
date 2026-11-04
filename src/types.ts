@@ -18,7 +18,7 @@ export type Condition = "great" | "good" | "normal" | "poor";
 
 export type Sex = "male" | "female";
 
-export type BetKind = "win" | "place" | "exacta" | "quinella" | "trifecta" | "trio";
+export type BetKind = "win" | "place" | "wide" | "exacta" | "quinella" | "trifecta" | "trio";
 
 export type Track = "good" | "soft" | "yielding" | "heavy";
 
@@ -393,10 +393,14 @@ export interface StudEntry {
   blood: HorseEntry["blood"];
 }
 
+export type Weather = "sunny" | "cloudy" | "light_rain" | "rain" | "snow";
+
 export interface RaceResult {
   rank: number;
   name: string;
   finish_time: number;
+  /** How far behind the horse in front (着差); empty for the winner. */
+  margin?: string;
 }
 
 export interface CommentLine {
@@ -477,6 +481,8 @@ export interface Runner {
   mine: boolean;
   odds: number;
   place_odds: number;
+  /** Its place in the betting (人気). */
+  popularity?: number;
 }
 
 export interface RaceCard {
@@ -497,6 +503,7 @@ export interface RaceCard {
   surface: "turf" | "dirt";
   /** Track condition (馬場状態) on the day. */
   track?: Track;
+  weather?: Weather;
   entrants: Runner[];
   /** Every horse in the stable: whether it can run in this race and whether it is entered. */
   my_horses: { name: string; eligible: boolean; entered: boolean; gear?: Gear; fatigue?: number; resting?: boolean; away?: Away | null; barred?: string | null; registered?: boolean; drawn_out?: boolean }[];

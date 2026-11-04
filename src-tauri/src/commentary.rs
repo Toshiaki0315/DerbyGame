@@ -191,6 +191,7 @@ mod tests {
                 rank: r as u32 + 1,
                 name: (*n).clone(),
                 finish_time: *t,
+                margin: String::new(),
             })
             .collect()
     }
@@ -372,11 +373,13 @@ mod tests {
                 rank: 1,
                 name: "アルファ".into(),
                 finish_time: 60.0,
+                margin: String::new(),
             },
             RaceResult {
                 rank: 2,
                 name: "ベータ".into(),
                 finish_time: 60.05,
+                margin: String::new(),
             },
         ];
         let far = vec![
@@ -384,11 +387,13 @@ mod tests {
                 rank: 1,
                 name: "アルファ".into(),
                 finish_time: 60.0,
+                margin: String::new(),
             },
             RaceResult {
                 rank: 2,
                 name: "ベータ".into(),
                 finish_time: 61.5,
+                margin: String::new(),
             },
         ];
         let has = |r: &[RaceResult]| {

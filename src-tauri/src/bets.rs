@@ -1,8 +1,8 @@
-//! The six kinds of betting ticket and the maths behind them: how likely a
+//! The seven kinds of betting ticket and the maths behind them: how likely a
 //! combination is, whether a ticket hit, and how a selection is written.
 //!
 //! * 単勝 pick the winner · 複勝 pick a horse that finishes in the top three
-//!   (the top two in a field of seven or fewer)
+//!   (the top two in a field of seven or fewer) · ワイド pick two horses that both finish in the top three
 //! * 馬単 pick 1st and 2nd, in order · 馬連 pick the top two, in any order
 //! * 三連単 pick 1st, 2nd and 3rd, in order · 三連複 pick the top three, in any order
 
@@ -12,7 +12,7 @@ use crate::game::BetKind;
 pub fn picks(kind: BetKind) -> usize {
     match kind {
         BetKind::Win | BetKind::Place => 1,
-        BetKind::Exacta | BetKind::Quinella => 2,
+        BetKind::Wide | BetKind::Exacta | BetKind::Quinella => 2,
         BetKind::Trifecta | BetKind::Trio => 3,
     }
 }
@@ -98,6 +98,15 @@ pub fn combo_probability(p: &[f64], kind: BetKind, idx: &[usize]) -> Option<f64>
     match kind {
         BetKind::Place => None,
         BetKind::Win => Some(p[idx[0]]),
+        // both horses home in the first three: with each other horse as the third
+        BetKind::Wide if p.len() < 3 => Some(1.0),
+        BetKind::Wide => Some(
+            (0..p.len())
+                .filter(|k| !idx.contains(k))
+                .flat_map(|k| permutations(&[idx[0], idx[1], k]))
+                .map(|seq| ordered_probability(p, &seq))
+                .sum(),
+        ),
         BetKind::Exacta | BetKind::Trifecta => Some(ordered_probability(p, idx)),
         BetKind::Quinella | BetKind::Trio => Some(
             permutations(idx)
@@ -125,11 +134,20 @@ pub fn is_hit(kind: BetKind, picked: &[String], order: &[String]) -> bool {
     match kind {
         BetKind::Win => order[0] == picked[0],
         BetKind::Place => top(place_slots(order.len())).contains(&picked[0]),
+        BetKind::Wide => picked.iter().all(|h| top(3).contains(h)),
         BetKind::Exacta => top(2) == picked,
         BetKind::Quinella => same_set(top(2), picked),
         BetKind::Trifecta => top(3) == picked,
         BetKind::Trio => same_set(top(3), picked),
     }
+}
+
+/// Each horse's place in the betting (人気) from its win odds: the shortest are 1番人気,
+/// and horses on the same odds share a place.
+pub fn popularity(odds: &[f64]) -> Vec<u32> {
+    odds.iter()
+        .map(|o| odds.iter().filter(|other| *other < o).count() as u32 + 1)
+        .collect()
 }
 
 /// Every way of choosing `n` of `items`, in order, without repeats (unordered picks).
@@ -226,7 +244,7 @@ mod tests {
     }
     use BetKind::*;
 
-    const ALL: [BetKind; 6] = [Win, Place, Exacta, Quinella, Trifecta, Trio];
+    const ALL: [BetKind; 7] = [Win, Place, Wide, Exacta, Quinella, Trifecta, Trio];
 
     fn names(n: &[&str]) -> Vec<String> {
         n.iter().map(|s| s.to_string()).collect()
@@ -239,12 +257,15 @@ mod tests {
 
     #[test]
     fn each_kind_picks_the_right_number_of_horses() {
-        assert_eq!(ALL.map(picks), [1, 1, 2, 2, 3, 3]);
+        assert_eq!(ALL.map(picks), [1, 1, 2, 2, 2, 3, 3]);
     }
 
     #[test]
     fn only_exacta_and_trifecta_care_about_order() {
-        assert_eq!(ALL.map(ordered), [false, false, true, false, true, false]);
+        assert_eq!(
+            ALL.map(ordered),
+            [false, false, false, true, false, true, false]
+        );
     }
 
     #[test]
@@ -266,6 +287,7 @@ mod tests {
             [
                 "\"win\"",
                 "\"place\"",
+                "\"wide\"",
                 "\"exacta\"",
                 "\"quinella\"",
                 "\"trifecta\"",
@@ -696,5 +718,69 @@ mod tests {
                 assert_eq!(t.len(), picks(kind));
             }
         }
+    }
+
+    #[test]
+    fn a_wide_ticket_hits_when_both_horses_finish_in_the_first_three() {
+        let order = names(&["A", "B", "C", "D"]);
+        for ok in [["A", "B"], ["B", "A"], ["A", "C"], ["C", "B"]] {
+            assert!(is_hit(Wide, &names(&ok), &order), "{ok:?}");
+        }
+        for wrong in [["A", "D"], ["D", "C"]] {
+            assert!(!is_hit(Wide, &names(&wrong), &order), "{wrong:?}");
+        }
+    }
+
+    #[test]
+    fn a_wide_ticket_picks_two_horses_in_any_order() {
+        assert_eq!(picks(Wide), 2);
+        assert!(!ordered(Wide));
+        assert_eq!(box_selections(Wide, &horses(4)).unwrap().len(), 6);
+        assert_eq!(
+            nagashi_selections(Wide, "A", &horses(4)[1..])
+                .unwrap()
+                .len(),
+            3
+        );
+    }
+
+    #[test]
+    fn a_wide_ticket_is_likelier_than_a_quinella_on_the_same_horses() {
+        let p = [0.4, 0.3, 0.2, 0.1];
+        let wide = combo_probability(&p, Wide, &[1, 3]).unwrap();
+        let quinella = combo_probability(&p, Quinella, &[1, 3]).unwrap();
+        assert!(wide > quinella, "{wide} against {quinella}");
+    }
+
+    #[test]
+    fn exactly_three_pairs_of_a_field_come_in_on_a_wide_ticket() {
+        let p = [0.3, 0.25, 0.2, 0.15, 0.1];
+        let mut total = 0.0;
+        for a in 0..p.len() {
+            for b in a + 1..p.len() {
+                total += combo_probability(&p, Wide, &[a, b]).unwrap();
+            }
+        }
+        assert!((total - 3.0).abs() < 1e-9, "{total}");
+    }
+
+    #[test]
+    fn with_no_third_horse_a_wide_ticket_cannot_miss() {
+        assert_eq!(combo_probability(&[0.6, 0.4], Wide, &[0, 1]), Some(1.0));
+    }
+
+    #[test]
+    fn the_shortest_odds_are_the_most_popular() {
+        assert_eq!(popularity(&[5.0, 1.5, 30.0, 2.8]), vec![3, 1, 4, 2]);
+    }
+
+    #[test]
+    fn horses_on_the_same_odds_are_equally_popular() {
+        assert_eq!(popularity(&[2.0, 2.0, 1.5, 9.0]), vec![2, 2, 1, 4]);
+    }
+
+    #[test]
+    fn no_field_no_popularity() {
+        assert!(popularity(&[]).is_empty());
     }
 }

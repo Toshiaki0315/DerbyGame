@@ -483,6 +483,7 @@ fn a_lesser_place_only_earns_money() {
             rank: n as u32 + 1,
             name: name.clone(),
             finish_time: n as f64,
+            margin: String::new(),
         })
         .collect();
     g.note_results(&spec, &results);

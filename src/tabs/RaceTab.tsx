@@ -1,7 +1,7 @@
 // The week's races: the card, who is entered, and the race itself.
 
 import { GRADE_LABEL, SURFACE_LABEL, VENUE_LABEL, conditionText, monthOfWeek } from "../Calendar";
-import { DEBUT_AGE, DIRT_LABEL, DIRT_WORDS, FIT_MARK, FIT_RATING_MARK, FIT_WORDS, FREE_RACE, GROWTH_MARK, GROWTH_WORDS, SEX_LABEL, STYLE_WORDS, TRACK_LABEL, badTrackMark, fitReasons, gearWords, isYoung, raceValue, recordText, starRecord, temperMark } from "../labels";
+import { DEBUT_AGE, DIRT_LABEL, DIRT_WORDS, FIT_MARK, FIT_RATING_MARK, FIT_WORDS, FREE_RACE, GROWTH_MARK, GROWTH_WORDS, SEX_LABEL, STYLE_WORDS, TRACK_LABEL, WEATHER_LABEL, badTrackMark, fitReasons, gearWords, isYoung, raceValue, recordText, starRecord, temperMark } from "../labels";
 import BetPanel from "./BetPanel";
 import RacePanel from "./RacePanel";
 import { AppView } from "../view";
@@ -44,6 +44,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
             <span>{`${VENUE_LABEL[chosenRace.venue]} ${SURFACE_LABEL[chosenRace.surface]}${chosenRace.distance}m`}</span>
             <span>{conditionText(chosenRace)}</span>
             <span>{`${chosenRace.prize.toLocaleString("en-US")}万円`}</span>
+            {card?.weather && <span aria-label={`天候: ${WEATHER_LABEL[card.weather]}`}>{WEATHER_LABEL[card.weather]}</span>}
             {card?.track && (
               <span className={`track-badge ${card.track}`} aria-label={`馬場状態: ${TRACK_LABEL[card.track]}`}>
                 {TRACK_LABEL[card.track]}
@@ -126,7 +127,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
           <thead>
             <tr>
               <th align="left">馬</th><th>性齢</th><th>スピード</th><th>スタミナ</th><th>パワー</th><th>調子</th>
-              <th title="レースで背負う重さです。重いほど不利で、1kgで能力が0.3%変わります。別定は勝ち数で増え、ハンデは強い馬ほど重くなります。">斤量</th><th>馬具</th><th>脚質</th><th>気性</th><th>成長</th><th>距離</th><th>場</th><th>騎手</th><th>ダート</th><th>道悪</th><th>単勝</th><th>複勝</th>
+              <th title="レースで背負う重さです。重いほど不利で、1kgで能力が0.3%変わります。別定は勝ち数で増え、ハンデは強い馬ほど重くなります。">斤量</th><th>馬具</th><th>脚質</th><th>気性</th><th>成長</th><th>距離</th><th>場</th><th>騎手</th><th>ダート</th><th>道悪</th><th>単勝</th><th>複勝</th><th title="単勝オッズの低い順です。">人気</th>
             </tr>
           </thead>
           <tbody>
@@ -228,6 +229,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                 </td>
                 <td align="center">{`x${h.odds.toFixed(1)}`}</td>
                 <td align="center">{`x${h.place_odds.toFixed(1)}`}</td>
+                <td align="center" aria-label={`${h.name}: ${h.popularity}番人気`}>{h.popularity}</td>
               </tr>
             ))}
           </tbody>

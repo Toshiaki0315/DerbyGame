@@ -456,3 +456,77 @@ fn a_trainer_picks_the_course_that_suits_the_horse_among_equal_prizes() {
     }
     assert!(told > 0, "no week offered a real choice of course");
 }
+
+// ---- the weather (天候) ----
+
+#[test]
+fn the_free_race_is_run_in_the_sun() {
+    assert_eq!(Game::new().race_card(None).unwrap().weather, Weather::Sunny);
+}
+
+#[test]
+fn the_weather_goes_with_the_track_and_is_the_same_for_every_race_there_that_day() {
+    let g = Game::new();
+    let mut seen = std::collections::HashSet::new();
+    for seed in 1..=60u64 {
+        let mut g = Game {
+            world_seed: seed,
+            ..g.clone()
+        };
+        for r in calendar::shared()
+            .races
+            .iter()
+            .filter(|r| r.grade == Grade::G1)
+            .take(8)
+        {
+            g.week = r.week;
+            let card = g.race_card(Some(&RaceKey::of(r))).unwrap();
+            assert_eq!(card.weather, g.weather_for(r.day, r.venue));
+            seen.insert(format!("{:?}", card.weather));
+            if card.track == TrackCondition::Good {
+                assert!(
+                    matches!(card.weather, Weather::Sunny | Weather::Cloudy),
+                    "{:?}",
+                    card.weather
+                );
+            }
+            if card.track == TrackCondition::Heavy {
+                assert!(
+                    matches!(card.weather, Weather::Rain | Weather::Snow),
+                    "{:?}",
+                    card.weather
+                );
+            }
+        }
+    }
+    assert!(seen.len() >= 3, "{seen:?}");
+}
+
+#[test]
+fn the_weather_changes_no_race() {
+    // the track comes from its own seed, whatever the sky is doing
+    let g = Game::with_seed(3);
+    let key = calendar::shared()
+        .races
+        .iter()
+        .find(|r| r.week == g.week)
+        .map(RaceKey::of)
+        .unwrap();
+    let card = g.race_card(Some(&key)).unwrap();
+    let r = calendar::shared()
+        .races
+        .iter()
+        .find(|r| r.week == g.week)
+        .unwrap();
+    assert_eq!(card.track, g.track_for(r.day, r.venue));
+}
+
+#[test]
+fn the_screen_is_told_the_weather_in_its_own_words() {
+    let v = serde_json::to_value(Game::new().race_card(None).unwrap()).unwrap();
+    assert_eq!(v["weather"], "sunny");
+    assert_eq!(
+        serde_json::to_value(Weather::LightRain).unwrap(),
+        "light_rain"
+    );
+}

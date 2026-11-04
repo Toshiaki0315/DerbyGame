@@ -89,6 +89,40 @@ pub fn forecast(seed: u64, week: u8) -> TrackCondition {
     }
 }
 
+/// The sky over a race day (天候).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Weather {
+    Sunny,
+    Cloudy,
+    LightRain,
+    Rain,
+    Snow,
+}
+
+/// The weather that goes with a track: a firm track is dry, a heavy one is under
+/// rain or snow, and one in between may be getting wet or drying out. Comes after
+/// the track, so that the track is as likely to be firm or heavy as it ever was.
+pub fn weather_on(track: TrackCondition, seed: u64, week: u8) -> Weather {
+    let r = Rng::new(seed).next_f64();
+    let falling = match track {
+        TrackCondition::Good if r < 0.7 => Weather::Sunny,
+        TrackCondition::Good => Weather::Cloudy,
+        TrackCondition::Soft if r < 0.2 => Weather::Sunny,
+        TrackCondition::Soft if r < 0.6 => Weather::Cloudy,
+        TrackCondition::Soft => Weather::LightRain,
+        TrackCondition::Yielding if r < 0.2 => Weather::Cloudy,
+        TrackCondition::Yielding if r < 0.6 => Weather::LightRain,
+        TrackCondition::Yielding | TrackCondition::Heavy => Weather::Rain,
+    };
+    let winter = matches!(week, 1..=8 | 49..=52);
+    if falling == Weather::Rain && winter {
+        Weather::Snow
+    } else {
+        falling
+    }
+}
+
 /// A horse's speed and stamina on the given track.
 ///
 /// On 良 nothing changes. Otherwise aptitude (0-100) cancels part of the loss:
@@ -476,5 +510,55 @@ mod tests {
                 assert!(c.stamina >= 0.0 && c.stamina <= h.stats.stamina + 1e-9);
             }
         }
+    }
+
+    fn weathers(condition: TrackCondition, week: u8) -> Vec<Weather> {
+        (0..500u64)
+            .map(|s| weather_on(condition, crate::rivals::mix_seed(&[s]), week))
+            .collect()
+    }
+
+    #[test]
+    fn a_firm_track_never_has_rain_or_snow_falling() {
+        assert!(weathers(Good, 20)
+            .iter()
+            .all(|w| matches!(w, Weather::Sunny | Weather::Cloudy)));
+    }
+
+    #[test]
+    fn a_heavy_track_always_has_something_falling() {
+        for week in [5, 20] {
+            assert!(weathers(Heavy, week)
+                .iter()
+                .all(|w| matches!(w, Weather::Rain | Weather::Snow)));
+        }
+    }
+
+    #[test]
+    fn a_soft_track_may_be_drying_under_any_sky_but_snow() {
+        let seen = weathers(Soft, 20);
+        for w in [Weather::Sunny, Weather::Cloudy, Weather::LightRain] {
+            assert!(seen.contains(&w), "{w:?}");
+        }
+        assert!(!seen.contains(&Weather::Snow));
+    }
+
+    #[test]
+    fn it_snows_only_in_winter() {
+        assert!(weathers(Yielding, 5).contains(&Weather::Snow));
+        assert!(weathers(Heavy, 51).contains(&Weather::Snow));
+        for week in [9, 20, 30, 48] {
+            for c in ALL_CONDITIONS {
+                assert!(
+                    !weathers(c, week).contains(&Weather::Snow),
+                    "{c:?} week {week}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_same_seed_gives_the_same_weather() {
+        assert_eq!(weather_on(Soft, 42, 20), weather_on(Soft, 42, 20));
     }
 }

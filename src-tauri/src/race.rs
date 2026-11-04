@@ -130,6 +130,50 @@ pub struct RaceResult {
     pub rank: u32,
     pub name: String,
     pub finish_time: f64,
+    /// How far behind the horse in front (着差); nothing for the winner.
+    #[serde(default)]
+    pub margin: String,
+}
+
+/// A horse's length, in metres.
+const HORSE_LENGTH: f64 = 2.4;
+/// The margins given in lengths, and how each is written.
+const LENGTHS: [(f64, &str); 17] = [
+    (0.5, "1/2"),
+    (0.75, "3/4"),
+    (1.0, "1"),
+    (1.25, "1 1/4"),
+    (1.5, "1 1/2"),
+    (1.75, "1 3/4"),
+    (2.0, "2"),
+    (2.5, "2 1/2"),
+    (3.0, "3"),
+    (3.5, "3 1/2"),
+    (4.0, "4"),
+    (5.0, "5"),
+    (6.0, "6"),
+    (7.0, "7"),
+    (8.0, "8"),
+    (9.0, "9"),
+    (10.0, "10"),
+];
+
+/// How a gap of this many lengths is called (着差).
+pub fn margin_label(lengths: f64) -> String {
+    match lengths {
+        l if l <= 0.0 => "同着".to_string(),
+        l if l < 0.05 => "ハナ".to_string(),
+        l if l < 0.125 => "アタマ".to_string(),
+        l if l < 0.375 => "クビ".to_string(),
+        l if l > 10.5 => "大差".to_string(),
+        l => {
+            let nearest = LENGTHS
+                .iter()
+                .min_by(|a, b| (a.0 - l).abs().total_cmp(&(b.0 - l).abs()))
+                .map_or("", |x| x.1);
+            format!("{nearest}馬身")
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -330,6 +374,9 @@ impl Race {
             .filter_map(|r| r.finish_time.map(|t| (r, t)))
             .collect();
         finished.sort_by(|a, b| a.1.total_cmp(&b.1));
+        // lengths at the pace the winner ran
+        let pace = finished.first().map_or(0.0, |w| self.distance / w.1);
+        let times: Vec<f64> = finished.iter().map(|f| f.1).collect();
         finished
             .into_iter()
             .enumerate()
@@ -337,6 +384,10 @@ impl Race {
                 rank: i as u32 + 1,
                 name: r.name.clone(),
                 finish_time: t,
+                margin: match i {
+                    0 => String::new(),
+                    _ => margin_label((t - times[i - 1]) * pace / HORSE_LENGTH),
+                },
             })
             .collect()
     }
@@ -807,5 +858,58 @@ mod tests {
         })
         .unwrap();
         assert_eq!(v, serde_json::json!({"menko": true, "shadow_roll": false}));
+    }
+
+    #[test]
+    fn the_closest_finishes_have_their_own_names() {
+        assert_eq!(margin_label(0.0), "同着");
+        assert_eq!(margin_label(0.02), "ハナ");
+        assert_eq!(margin_label(0.08), "アタマ");
+        assert_eq!(margin_label(0.2), "クビ");
+    }
+
+    #[test]
+    fn longer_margins_are_given_in_lengths() {
+        for (lengths, label) in [
+            (0.5, "1/2馬身"),
+            (0.75, "3/4馬身"),
+            (1.0, "1馬身"),
+            (1.3, "1 1/4馬身"),
+            (1.5, "1 1/2馬身"),
+            (1.7, "1 3/4馬身"),
+            (2.1, "2馬身"),
+            (2.4, "2 1/2馬身"),
+            (3.0, "3馬身"),
+            (3.6, "3 1/2馬身"),
+            (4.2, "4馬身"),
+            (5.4, "5馬身"),
+            (10.0, "10馬身"),
+        ] {
+            assert_eq!(margin_label(lengths), label, "{lengths}");
+        }
+    }
+
+    #[test]
+    fn beyond_ten_lengths_is_a_distance() {
+        assert_eq!(margin_label(10.6), "大差");
+        assert_eq!(margin_label(50.0), "大差");
+    }
+
+    #[test]
+    fn the_winner_has_no_margin_and_the_others_are_measured_from_the_horse_in_front() {
+        let mut race = Race::new(horses(), 1000.0, 7);
+        for _ in 0..100_000 {
+            if race.is_finished() {
+                break;
+            }
+            race.tick();
+        }
+        let results = race.results();
+        assert_eq!(results[0].margin, "");
+        for pair in results.windows(2) {
+            let speed = race.distance / results[0].finish_time;
+            let lengths = (pair[1].finish_time - pair[0].finish_time) * speed / HORSE_LENGTH;
+            assert_eq!(pair[1].margin, margin_label(lengths));
+        }
     }
 }

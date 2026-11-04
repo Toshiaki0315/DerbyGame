@@ -2701,6 +2701,43 @@ describe("App", () => {
     });
   });
 
+  describe("what the race card says", () => {
+    const entrants = freeCard.entrants;
+    const cardWith = (extra: Record<string, unknown>) => ({
+      ...freeCard,
+      entrants: entrants.map((e, i) => ({ ...e, popularity: i + 1 })),
+      ...extra,
+    });
+
+    it("shows how popular each horse is", async () => {
+      mockBackend(undefined, undefined, undefined, { get_race_card: cardWith({}) });
+      render(<App />);
+      await ready();
+      await waitFor(() => expect(screen.getByRole("columnheader", { name: "人気" })).toBeTruthy());
+      expect(screen.getByLabelText(`${entrants[0].name}: 1番人気`)).toBeTruthy();
+      expect(screen.getByLabelText(`${entrants[1].name}: 2番人気`)).toBeTruthy();
+    });
+
+    it("offers a wide ticket that picks two horses", async () => {
+      mockBackend(undefined, undefined, undefined, { get_race_card: cardWith({}), quote_bet: 3.4 });
+      render(<App />);
+      await ready();
+      fireEvent.change(await screen.findByLabelText("賭け方"), { target: { value: "wide" } });
+      expect(within(screen.getByLabelText("賭け方")).getByRole("option", { name: "ワイド(2頭が3着以内)" })).toBeTruthy();
+      expect(screen.getByLabelText("1頭目")).toBeTruthy();
+      expect(screen.getByLabelText("2頭目")).toBeTruthy();
+      expect(screen.queryByLabelText("3頭目")).toBeNull();
+    });
+
+    it("gives the weather with the course", async () => {
+      const course = { name: "東京", turn: "左回り" };
+      mockBackend(undefined, undefined, undefined, { get_race_card: cardWith({ course, weather: "light_rain", track: "soft" }) });
+      render(<App />);
+      await ready();
+      await waitFor(() => expect(screen.getByLabelText("コース情報").textContent).toContain("小雨・稍重"));
+    });
+  });
+
   describe("running out of horses", () => {
     const warning = () => screen.queryByRole("status", { name: "後継の馬" });
 
@@ -3152,7 +3189,7 @@ describe("App", () => {
   const runButton = () => screen.getByText("レース開始") as HTMLButtonElement;
   const quoteCalls = () => vi.mocked(invoke).mock.calls.filter((c) => c[0] === "quote_bet");
 
-  it("offers all six kinds of ticket", async () => {
+  it("offers all seven kinds of ticket", async () => {
     mockBackend();
     render(<App />);
     await ready();
@@ -3160,6 +3197,7 @@ describe("App", () => {
     expect(options).toEqual([
       ["win", "単勝(1着)"],
       ["place", "複勝(3着以内)"],
+      ["wide", "ワイド(2頭が3着以内)"],
       ["exacta", "馬単(1着→2着の順)"],
       ["quinella", "馬連(1・2着、順不問)"],
       ["trifecta", "三連単(1→2→3着の順)"],
