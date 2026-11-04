@@ -2701,6 +2701,39 @@ describe("App", () => {
     });
   });
 
+  describe("running out of horses", () => {
+    const warning = () => screen.queryByRole("status", { name: "後継の馬" });
+
+    it("says nothing while the stable has horses enough", async () => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, racers: 8, successors: 6, min_racers: 4, short_of_racers: false, short_of_successors: false } });
+      render(<App />);
+      await ready();
+      expect(warning()).toBeNull();
+    });
+
+    it("says how many successors there are", async () => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, racers: 8, successors: 2, min_racers: 4, short_of_racers: false, short_of_successors: true } });
+      render(<App />);
+      await ready();
+      expect(warning()?.textContent).toBe("後継の馬が2頭しかいません。種付けかセリで用意してください。");
+    });
+
+    it("says how many can race once those run short too", async () => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, racers: 3, successors: 0, min_racers: 4, short_of_racers: true, short_of_successors: true } });
+      render(<App />);
+      await ready();
+      expect(warning()?.textContent).toBe("出走できる馬が3頭、後継の馬が0頭です。種付けかセリで用意してください。");
+    });
+
+    it("stays on whichever tab is open", async () => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, racers: 8, successors: 2, min_racers: 4, short_of_racers: false, short_of_successors: true } });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "繁殖" }));
+      expect(warning()).toBeTruthy();
+    });
+  });
+
   describe("autoplay", () => {
     /** A backend whose weeks go on when asked, and what it was asked. */
     const weeks = (turn: (week: number) => Record<string, unknown> = () => ({})) => {
@@ -2809,6 +2842,33 @@ describe("App", () => {
       fastest();
       start();
       await waitFor(() => expect(nextWeek.mock.calls.length).toBeGreaterThanOrEqual(2), { timeout: 3000 });
+      fireEvent.click(screen.getByRole("button", { name: "オートプレイ停止" }));
+    });
+
+    it("stops when the racing horses run short, saying how many are left", async () => {
+      const nextWeek = weeks(() => ({ racers: 3, min_racers: 4, short_of_racers: true }));
+      render(<App />);
+      await ready();
+      fastest();
+      start();
+      await screen.findByText(/出走できる馬が3頭になったのでオートプレイを止めました。/, undefined, { timeout: 3000 });
+      expect(nextWeek).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not stop again and again for a stable already short of racing horses", async () => {
+      const short = { racers: 3, min_racers: 4, short_of_racers: true };
+      let week = 1;
+      const nextWeek = vi.fn(() => {
+        week += 1;
+        return { ...state, ...short, week };
+      });
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, ...short }, next_week: nextWeek });
+      render(<App />);
+      await ready();
+      fastest();
+      start();
+      await waitFor(() => expect(nextWeek.mock.calls.length).toBeGreaterThanOrEqual(2), { timeout: 3000 });
+      expect(screen.queryByText(/オートプレイを止めました/)).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "オートプレイ停止" }));
     });
 

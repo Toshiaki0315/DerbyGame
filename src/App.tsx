@@ -78,6 +78,14 @@ function App() {
         )}
       </section>
 
+      {game.short_of_successors && (
+        <p className="succession" role="status" aria-label="後継の馬">
+          {game.short_of_racers
+            ? `出走できる馬が${game.racers}頭、後継の馬が${game.successors}頭です。種付けかセリで用意してください。`
+            : `後継の馬が${game.successors}頭しかいません。種付けかセリで用意してください。`}
+        </p>
+      )}
+
       <nav className="tabs" role="tablist">
         {TABS.map((t) => (
           <button

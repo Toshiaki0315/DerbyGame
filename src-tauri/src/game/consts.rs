@@ -266,6 +266,13 @@ pub const MAX_STUDS: usize = 6;
 /// Age at which a horse retires to stud at the turn of the year.
 pub const RETIRE_AGE: u8 = 9;
 
+/// A stable with fewer racing horses than this is running out of them, and with
+/// fewer successors than this will be.
+pub const MIN_RACERS: usize = 4;
+
+/// Years from a mating to the foal's first race: a year in the mare, then two growing.
+pub const FOAL_LEAD_YEARS: u8 = 3;
+
 /// Dirt aptitude moves a horse's speed by this fraction per step on dirt.
 pub(super) const DIRT_STEP: f64 = 0.05;
 

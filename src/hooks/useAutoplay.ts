@@ -32,13 +32,15 @@ export function useAutoplay(core: Core, races: Races, show: RaceShow, autoplay: 
           ? "ゲームオーバーのためオートプレイを止めました。"
           : s.field.length === 0
             ? "厩舎に馬がいなくなったのでオートプレイを止めました。"
-            : s.money < (s.weekly_upkeep ?? 0) * AUTOPLAY_RESERVE_WEEKS
-              ? s.field.every((h) => h.auto_entry)
-                ? "所持金が少なくなったのでオートプレイを止めました。"
-                : "所持金が少なくなったのでオートプレイを止めました。賞金が入るよう「自動出走」を確認してください。"
-              : stopAtNewYear && s.year > game.year
-              ? `${s.year}年目に入ったのでオートプレイを止めました。`
-              : "";
+            : s.short_of_racers && !game.short_of_racers
+              ? `出走できる馬が${s.racers}頭になったのでオートプレイを止めました。種付けかセリで後継の馬を用意してください。`
+              : s.money < (s.weekly_upkeep ?? 0) * AUTOPLAY_RESERVE_WEEKS
+                ? s.field.every((h) => h.auto_entry)
+                  ? "所持金が少なくなったのでオートプレイを止めました。"
+                  : "所持金が少なくなったのでオートプレイを止めました。賞金が入るよう「自動出走」を確認してください。"
+                : stopAtNewYear && s.year > game.year
+                  ? `${s.year}年目に入ったのでオートプレイを止めました。`
+                  : "";
         if (stopped) {
           setAutoplay(false);
           setNotice(stopped);

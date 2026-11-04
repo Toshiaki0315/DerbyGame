@@ -21,6 +21,7 @@ mod race_entries;
 mod regressions;
 mod retirement;
 mod saves;
+mod succession;
 mod trainers;
 mod training;
 

@@ -65,6 +65,7 @@ td.train button { margin-left: 4px; padding: 3px 6px; font-size: 11px; }
 .lost { color: #b3261e; }
 .notice { color: #9be3b0; margin: 0 0 8px; }
 .error { color: #ffb4ab; margin: 0 0 8px; }
+.succession { color: #ffe27a; margin: 0 0 12px; font-size: 14px; }
 .history { margin-top: 16px; }
 .history p { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
 .history ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }

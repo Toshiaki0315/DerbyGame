@@ -856,3 +856,67 @@ fn a_new_game_after_a_reset_has_a_fresh_pair_and_old_saves_keep_their_studs() {
     g.reset();
     assert_eq!(g.studs.len(), 2);
 }
+
+/// Runs a linking that must come to an end, failing rather than hanging if it does not.
+fn links_in_time(db: Vec<crate::bloodline::BloodHorse>, wanted: Vec<(usize, Sex)>) -> Vec<u32> {
+    let (done, result) = std::sync::mpsc::channel();
+    std::thread::spawn(move || done.send(founder_links(&db, 1, &wanted)).unwrap());
+    result
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("linking the founders never finished")
+}
+
+/// A record of the newest generation, of this line.
+fn newest(id: u32, sex: Sex, line: &str) -> crate::bloodline::BloodHorse {
+    let mut r = rec(id, None, None, sex);
+    r.gen = NEWEST_GENERATION;
+    r.lineage = line.to_string();
+    r
+}
+
+#[test]
+fn founders_of_a_line_short_of_horses_are_found_in_another_line() {
+    // slots 0 and 2 both take line A, which has one stallion for them
+    let db = vec![
+        newest(1, Sex::Male, "A"),
+        newest(2, Sex::Male, "B"),
+        newest(3, Sex::Male, "B"),
+    ];
+    let mut ids = links_in_time(db, vec![(0, Sex::Male), (2, Sex::Male)]);
+    assert_eq!(ids[0], 1);
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), 2, "two founders share a record");
+}
+
+#[test]
+fn founders_share_a_record_only_when_there_are_too_few_to_go_round() {
+    let db = vec![newest(1, Sex::Male, "A"), newest(2, Sex::Female, "A")];
+    assert_eq!(
+        links_in_time(db, vec![(0, Sex::Male), (1, Sex::Male)]),
+        vec![1, 1]
+    );
+}
+
+#[test]
+fn every_new_game_can_start() {
+    let (done, result) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        // the last are seeds that once hung: a line ran out of horses for its founders
+        let hung = [217u64, 302, 327, 351, 373].map(|n| {
+            n.wrapping_mul(1_000_000_007)
+                .wrapping_add(1_793_000_000_000_000_000)
+        });
+        for seed in (0..40).chain(hung) {
+            let g = Game::with_seed(seed);
+            let mut ids = g.all(|h| h.blood_id);
+            ids.sort();
+            ids.dedup();
+            assert_eq!(ids.len(), g.field.len(), "seed {seed}");
+        }
+        done.send(()).unwrap();
+    });
+    result
+        .recv_timeout(std::time::Duration::from_secs(120))
+        .expect("a new game did not start");
+}

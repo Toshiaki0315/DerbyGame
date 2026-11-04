@@ -208,6 +208,13 @@ export interface GameState {
   trainer_bonus_percent?: number;
   /** お任せ never spends the stable's money below this. */
   auto_keep_money?: number;
+  /** The horses old enough to race. */
+  racers?: number;
+  /** The horses still racing when a foal mated now would first run. */
+  successors?: number;
+  min_racers?: number;
+  short_of_racers?: boolean;
+  short_of_successors?: boolean;
 }
 
 /** A graded race a horse has won. */

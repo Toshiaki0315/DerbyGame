@@ -156,6 +156,11 @@ impl Game {
             race_fatigue_limit: RACE_FATIGUE_LIMIT,
             train_fatigue_limit: TRAIN_FATIGUE_LIMIT,
             auto_keep_money: self.auto_keep(),
+            racers: self.racers(),
+            successors: self.successors(),
+            min_racers: MIN_RACERS,
+            short_of_racers: self.racers() < MIN_RACERS,
+            short_of_successors: self.successors() < MIN_RACERS,
         }
     }
 }

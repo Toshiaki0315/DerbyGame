@@ -128,6 +128,32 @@ impl Game {
         }
     }
 
+    /// The horses old enough to race, away for now or not.
+    pub(super) fn racers(&self) -> usize {
+        self.field.iter().filter(|h| h.age >= DEBUT_AGE).count()
+    }
+
+    /// The horses that will still be racing when a foal mated now would first run,
+    /// foals on the way among them.
+    pub(super) fn successors(&self) -> usize {
+        let staying = self
+            .field
+            .iter()
+            .filter(|h| h.age + FOAL_LEAD_YEARS < RETIRE_AGE)
+            .count();
+        staying + self.pregnancies.len()
+    }
+
+    /// As the breeding season opens, says so if the stable will run out of horses.
+    pub(super) fn warn_of_succession(&mut self) {
+        let successors = self.successors();
+        if self.week == BREEDING_START_WEEK && successors < MIN_RACERS {
+            self.news.push(format!(
+                "後継の馬が{successors}頭しかいません。種付けかセリで用意しないと、{FOAL_LEAD_YEARS}年後には出走できる馬が足りなくなります。"
+            ));
+        }
+    }
+
     /// Leaves a horse's weekly training to the trainer (お任せ), or takes it back.
     pub fn set_auto_training(&mut self, name: &str, on: bool) -> Result<(), GameError> {
         let i = self.slot(name)?;

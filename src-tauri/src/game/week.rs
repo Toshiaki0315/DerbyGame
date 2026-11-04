@@ -46,6 +46,7 @@ impl Game {
         self.roll_conditions();
         self.bring_back_horses();
         self.deliver_foals();
+        self.warn_of_succession();
         self.run_auto_training();
         self.note_goals();
     }

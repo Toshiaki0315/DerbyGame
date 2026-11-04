@@ -274,6 +274,13 @@ pub struct GameState {
     pub train_fatigue_limit: u32,
     /// お任せ never spends the stable's money below this.
     pub auto_keep_money: u32,
+    /// The horses old enough to race.
+    pub racers: usize,
+    /// The horses still racing when a foal mated now would first run.
+    pub successors: usize,
+    pub min_racers: usize,
+    pub short_of_racers: bool,
+    pub short_of_successors: bool,
 }
 
 /// What a horse's record in the blood database says about it.
@@ -1094,15 +1101,20 @@ pub(super) fn founder_links(
                 .map(|h| h.id)
                 .collect();
             if pool.is_empty() {
-                pool = of_sex; // that line has no horse of this sex left
+                pool = of_sex.clone(); // that line has no horse of this sex left
             }
-            let mut n = rivals::mix_seed(&[world_seed, 0xB10D, slot as u64]) as usize % pool.len();
-            loop {
-                if used.insert(pool[n]) {
-                    return pool[n];
-                }
-                n = (n + 1) % pool.len();
-            }
+            let n = rivals::mix_seed(&[world_seed, 0xB10D, slot as u64]) as usize % pool.len();
+            let free = |list: &[u32], from: usize| {
+                (0..list.len())
+                    .map(|k| list[(from + k) % list.len()])
+                    .find(|id| !used.contains(id))
+            };
+            // the line's horses may all be taken, and even the whole generation's
+            let id = free(&pool, n)
+                .or_else(|| free(&of_sex, n))
+                .unwrap_or(pool[n]);
+            used.insert(id);
+            id
         })
         .collect()
 }
