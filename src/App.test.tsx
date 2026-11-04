@@ -1059,7 +1059,7 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
       const fast = screen.getByLabelText("Fastの作戦") as HTMLSelectElement;
       expect(fast.value).toBe("sashi");
-      expect(Array.from(fast.options).map((o) => o.text)).toEqual(["騎手におまかせ", "逃げ", "先行", "差し", "追込"]);
+      expect(Array.from(fast.options).map((o) => o.text)).toEqual(["騎手におまかせ", "大逃げ", "逃げ", "先行", "差し", "追込"]);
       fireEvent.change(fast, { target: { value: "nige" } });
       await waitFor(() => expect(set).toHaveBeenCalledWith({ horse: "Fast", order: "nige" }));
       fireEvent.change(fast, { target: { value: "" } });
@@ -2823,6 +2823,64 @@ describe("App", () => {
       await ready();
       fireEvent.click(screen.getByRole("tab", { name: "繁殖" }));
       expect(await screen.findByText("仔の成長型の見込み: 早熟20% / 普通60% / 晩成20%")).toBeTruthy();
+    });
+  });
+
+  describe("a horse's weight and character", () => {
+    it("shows the weight with its change and the character on the card", async () => {
+      const entrants = freeCard.entrants.map((e, i) => (i === 0 ? { ...e, body_weight: 480, body_change: 4, specials: [{ name: "大舞台", description: "G1で" }] } : { ...e, body_weight: 462, body_change: -6 }));
+      mockBackend(undefined, undefined, undefined, { get_race_card: { ...freeCard, entrants } });
+      render(<App />);
+      await ready();
+      expect(await screen.findByText("480(+4)")).toBeTruthy();
+      expect(screen.getByText("462(-6)")).toBeTruthy();
+      expect(screen.getByText("大舞台")).toBeTruthy();
+    });
+
+    it("shows the weight and the best weight in the training tab", async () => {
+      const field = [{ ...state.field[0], body_weight: 490, ideal_weight: 478, specials: [{ name: "頑健", description: "故障しにくい" }] }, state.field[1]];
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, field } });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "育成" }));
+      expect(screen.getByLabelText("Fastの馬体重").textContent).toBe("490kg(ベスト478)");
+      expect(screen.getByText("頑健")).toBeTruthy();
+    });
+  });
+
+  describe("how a race is run", () => {
+    it("says on the card what to expect and which horses kick or stay", async () => {
+      const entrants = freeCard.entrants.map((e, i) => ({ ...e, kick: i === 0 ? "瞬発" : i === 1 ? "持久" : null }));
+      mockBackend(undefined, undefined, undefined, { get_race_card: { ...freeCard, entrants, pace_outlook: "逃げ馬が多く、ハイペースになりそうです。" } });
+      render(<App />);
+      await ready();
+      await waitFor(() => expect(screen.getByLabelText("展開予想").textContent).toContain("ハイペース"));
+      expect(screen.getByText("瞬発")).toBeTruthy();
+      expect(screen.getByText("持久")).toBeTruthy();
+    });
+
+    it("says how the race was run with the result", async () => {
+      const race = {
+        results: [{ rank: 1, name: "Fast", finish_time: 60 }, { rank: 2, name: "Slow", finish_time: 60.5 }],
+        pace: "スローペースの瞬発戦",
+        frames: [[500, 400], [1000, 900], [1000, 1000]],
+        commentary: [],
+        runners: ["Fast", "Slow"],
+        race_name: null,
+        distance: 1000,
+        won: false,
+        payout: 0,
+        tickets: [],
+        prizes: [],
+        prize_total: 0,
+        money: 1000,
+      };
+      mockBackend(undefined, undefined, undefined, { watch_race: race });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByText("レース開始"));
+      fireEvent.click(await screen.findByText("スキップ"));
+      await waitFor(() => expect(screen.getByText("展開: スローペースの瞬発戦")).toBeTruthy());
     });
   });
 

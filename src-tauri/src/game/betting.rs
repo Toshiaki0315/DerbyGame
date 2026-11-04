@@ -498,6 +498,7 @@ impl Game {
         Self::call_mishaps(&mut commentary, &spec, seed, &frames, &stopped);
 
         Ok(RoundOutcome {
+            pace: Self::start_race(&spec, seed).pace.label().to_string(),
             stopped,
             results,
             frames,

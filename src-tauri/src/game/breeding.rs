@@ -65,6 +65,7 @@ impl Game {
                 let pick = &pool[rng.range(0, pool.len() as i64 - 1) as usize];
                 let rec = self.blood_record(pick.id).expect("a database record");
                 Stud {
+                    specials: rec.specials.clone(),
                     career: Career::default(),
                     legs: legs_of_blood(rec.id),
                     name: rec.name.clone(),
@@ -103,6 +104,9 @@ impl Game {
         }
         self.money -= offer.price;
         self.studs.push(Stud {
+            specials: self
+                .blood_record(offer.blood_id)
+                .map_or(vec![], |r| r.specials),
             career: Career::default(),
             legs: offer.legs,
             name: offer.name,
@@ -161,6 +165,7 @@ impl Game {
         r.stats.dirt = track::dirt_score(s.dirt);
         r.stats.temper = s.temper as f64;
         r.gender = s.sex;
+        r.specials = s.specials.clone();
         Ok((r, s.sex))
     }
 
@@ -494,6 +499,9 @@ impl Game {
             jump_license: false,
             jump_wins: 0,
             year_jump_wins: 0,
+            body_weight: ideal_weight(foal.id),
+            last_race_weight: ideal_weight(foal.id),
+            specials: foal.specials.clone(),
             record: RaceRecord::default(),
             career: Career::default(),
             gear: Gear::default(),

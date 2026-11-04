@@ -287,6 +287,24 @@ pub(super) const JUMP_JOCKEY_AVERAGE: i64 = 60;
 /// Chance of a horse that pulled up being hurt.
 pub(super) const STOP_INJURY: f64 = 0.3;
 
+/// Below this and above it a horse's weight begins to tell, from its best.
+pub(super) const BODY_ALLOWANCE: u32 = 10;
+/// What each kilo beyond that costs of its ability, and the most it can.
+pub(super) const BODY_LOSS: f64 = 0.002;
+pub const BODY_FORM_FLOOR: f64 = 0.96;
+/// What a race takes off a horse, and how fast it comes back to its best.
+pub(super) const RACE_WEIGHT_LOSS: u32 = 4;
+pub(super) const WEEKLY_WEIGHT_CHANGE: u32 = 3;
+
+/// Weeks since its last race that count as a rest, for a horse that goes well fresh.
+pub const FRESH_WEEKS: u32 = 8;
+/// What a character adds, in the race it is for.
+pub(super) const BIG_STAGE_FORM: f64 = 1.02;
+pub(super) const FRESH_FORM: f64 = 1.02;
+pub(super) const MUDLARK_FORM: f64 = 1.03;
+/// Chance of a G1 win bringing out the big race character, in percent.
+pub(super) const BIG_STAGE_PERCENT: u64 = 25;
+
 /// Most retired horses kept for breeding.
 pub const MAX_STUDS: usize = 6;
 

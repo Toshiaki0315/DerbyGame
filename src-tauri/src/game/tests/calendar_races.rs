@@ -93,6 +93,11 @@ fn dirt_aptitude_changes_speed_only_on_dirt() {
     use crate::calendar::Surface;
     let mk = |dirt: i8| crate::rivals::Entrant {
         jump: 0,
+        body_weight: 480,
+        body_change: 0,
+        body_form: 1.0,
+        specials: vec![],
+        rested: false,
         name: "テスト".into(),
         speed: 80,
         stamina: 70,
@@ -358,6 +363,11 @@ fn dirt_races_favour_dirt_specialists() {
     // two identical horses except for dirt aptitude, racing on dirt
     let mk = |name: &str, dirt: i8| crate::rivals::Entrant {
         jump: 0,
+        body_weight: 480,
+        body_change: 0,
+        body_form: 1.0,
+        specials: vec![],
+        rested: false,
         name: name.into(),
         speed: 78,
         stamina: 78,

@@ -39,6 +39,9 @@ impl Game {
         }
         self.money -= cost;
         self.field[i].trainings += 1;
+        self.field[i].body_weight = self.field[i]
+            .body_weight
+            .saturating_sub(workout.weight_loss());
         self.field[i].fatigue = (self.field[i].fatigue + workout.fatigue()).min(MAX_FATIGUE);
         self.roll_injury(i, WORKOUT_INJURY, 0xAC71);
         Ok(())

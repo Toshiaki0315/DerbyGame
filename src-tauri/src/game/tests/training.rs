@@ -294,6 +294,8 @@ fn the_state_lists_the_workouts_for_the_ui() {
             "曳き運動",
             "ダートコース",
             "障害練習",
+            "ポリトラック",
+            "ゲート練習",
         ]
     );
     let hill = &v["workouts"][1];

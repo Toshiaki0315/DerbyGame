@@ -3,8 +3,9 @@
 use super::*;
 
 /// The format saves are written in. Version 1 (a save with no version) kept what was
-/// known about the horses in lists side by side; each horse now holds its own.
-pub(super) const SAVE_VERSION: u32 = 2;
+/// known about the horses in lists side by side; each horse now holds its own. Version 3
+/// adds their weight and character (固有特性), which older saves take from the blood.
+pub(super) const SAVE_VERSION: u32 = 3;
 
 /// What a version 1 save keeps about its horses. The lists it may not have yet, which
 /// are older than the save, are made up from the horses.
@@ -138,6 +139,9 @@ impl ListsOfVersion1 {
                 jump_license: false,
                 jump_wins: 0,
                 year_jump_wins: 0,
+                body_weight: 0,
+                last_race_weight: 0,
+                specials: vec![],
                 record: records[i],
                 career: careers[i].clone(),
                 gear: gear[i],
@@ -192,6 +196,9 @@ impl Game {
         }
         if let Some(lists) = old_lists {
             game.take_version_1_horses(lists)?;
+        }
+        if version < 3 {
+            game.set_bodies_and_specials();
         }
         let unknown_blood = |id: u32| game.blood_record(id).is_none();
         if game.field.iter().any(|h| unknown_blood(h.blood_id)) {

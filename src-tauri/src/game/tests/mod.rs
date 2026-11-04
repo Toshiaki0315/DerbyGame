@@ -6,6 +6,7 @@ mod abroad;
 mod basics;
 mod betting;
 mod bloodlines;
+mod body;
 mod breeding;
 mod calendar_races;
 mod commands;
@@ -24,6 +25,7 @@ mod race_entries;
 mod regressions;
 mod retirement;
 mod saves;
+mod specials;
 mod staff;
 mod succession;
 mod trainers;
@@ -185,6 +187,11 @@ fn key_of(r: &crate::calendar::CalendarRace) -> RaceKey {
 fn runner(name: &str, power: u32, dirt: i8) -> crate::rivals::Entrant {
     crate::rivals::Entrant {
         jump: 0,
+        body_weight: 480,
+        body_change: 0,
+        body_form: 1.0,
+        specials: vec![],
+        rested: false,
         name: name.into(),
         speed: 78,
         stamina: 78,

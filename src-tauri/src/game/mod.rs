@@ -1,7 +1,7 @@
 //! The game: a stable of horses, week by week.
 
 use crate::bets;
-use crate::bloodline::{self, BloodHorse};
+use crate::bloodline::{self, BloodHorse, Special, SpecialInfo};
 use crate::calendar::{
     self, AgeRule, CalendarRace, Day, Eligibility, Grade, Surface, Venue, WeightRule,
 };
@@ -200,6 +200,7 @@ impl Game {
         game.link_blood();
         game.set_tempers_from_records();
         game.set_legs_from_blood();
+        game.set_bodies_and_specials();
         game.studs = game.starting_studs();
         game.stars = game.first_stars();
         game.roll_conditions();

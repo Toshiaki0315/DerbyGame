@@ -139,6 +139,96 @@ impl Genes {
     }
 }
 
+/// What a horse has that few others have (固有特性), which may run in a family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Special {
+    BigStage,
+    Steady,
+    Fresh,
+    Mudlark,
+    Iron,
+}
+
+impl Special {
+    pub const ALL: [Special; 5] = [
+        Special::BigStage,
+        Special::Steady,
+        Special::Fresh,
+        Special::Mudlark,
+        Special::Iron,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Special::BigStage => "大舞台",
+            Special::Steady => "堅実",
+            Special::Fresh => "鉄砲駆け",
+            Special::Mudlark => "道悪巧者",
+            Special::Iron => "頑健",
+        }
+    }
+
+    pub fn description(self) -> &'static str {
+        match self {
+            Special::BigStage => "G1で能力以上の力を出します。",
+            Special::Steady => "調子を崩しません。",
+            Special::Fresh => "休み明けでよく走ります。",
+            Special::Mudlark => "馬場が悪いほど力を出します。",
+            Special::Iron => "故障しにくい体です。",
+        }
+    }
+
+    pub fn info(self) -> SpecialInfo {
+        SpecialInfo {
+            name: self.name().to_string(),
+            description: self.description().to_string(),
+        }
+    }
+}
+
+/// A character as the screen shows it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpecialInfo {
+    pub name: String,
+    pub description: String,
+}
+
+/// Chance of a foal taking after each character of its parents, and of one appearing
+/// out of nowhere.
+const SPECIAL_FROM_PARENT: u64 = 30;
+const SPECIAL_FROM_NOWHERE: u64 = 3;
+
+/// What a foal has from its parents, or of its own. It has its own luck, like the
+/// jumping, so that the rest of the database comes out as it did.
+fn inherited_specials(sire: &BloodHorse, dam: &BloodHorse, id: u32) -> Vec<Special> {
+    let mut rng = Rng::new(mix(&[sire.id as u64, dam.id as u64, id as u64, 0x5EC1]));
+    let mut out = vec![];
+    for s in Special::ALL {
+        let mut from =
+            |p: &BloodHorse| p.specials.contains(&s) && rng_roll(&mut rng) < SPECIAL_FROM_PARENT;
+        if from(sire) || from(dam) {
+            out.push(s);
+        }
+    }
+    if out.is_empty() && rng_roll(&mut rng) < SPECIAL_FROM_NOWHERE {
+        out.push(Special::ALL[(rng.next_u64() % Special::ALL.len() as u64) as usize]);
+    }
+    out
+}
+
+fn rng_roll(rng: &mut Rng) -> u64 {
+    rng.next_u64() % 100
+}
+
+/// A founder's character, if it has one.
+fn founder_specials(id: u32) -> Vec<Special> {
+    match mix(&[id as u64, 0x5EC2]) % 24 {
+        n @ 0..=4 => vec![Special::ALL[n as usize]],
+        _ => vec![],
+    }
+}
+
 /// What a record from before jumping was kept has in it over fences.
 pub const NEUTRAL_JUMP: f64 = 50.0;
 
@@ -190,6 +280,9 @@ pub struct BloodHorse {
     /// What it has in it over fences (飛越), 0-100.
     #[serde(default = "neutral_jump")]
     pub jump: f64,
+    /// What it has that few others have (固有特性).
+    #[serde(default)]
+    pub specials: Vec<Special>,
     /// Best distance range in metres.
     pub aptitude_min: u32,
     pub aptitude_max: u32,
@@ -528,6 +621,7 @@ pub fn breed_with(
         growth_type: growth_type.to_string(),
         peak_age,
         jump: inherited_jump(sire, dam, id, &stats),
+        specials: inherited_specials(sire, dam, id),
         aptitude_min: dist_min,
         aptitude_max: dist_max,
         running_style: style,
@@ -834,6 +928,7 @@ fn founder(
         growth_factor,
         growth_type: growth_type.into(),
         jump: founder_jump(id),
+        specials: founder_specials(id),
         peak_age: lo, // founders peak at the early end of their type's range
         aptitude_min,
         aptitude_max,

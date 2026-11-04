@@ -174,6 +174,8 @@ pub struct RoundOutcome {
     pub results: Vec<RaceResult>,
     /// Those who started and did not finish (競走中止).
     pub stopped: Vec<String>,
+    /// How the race was run.
+    pub pace: String,
     /// Runner positions (field order) after each second of the race.
     pub frames: Vec<Vec<f64>>,
     /// Live commentary, each line tied to the replay frame it appears at.
@@ -334,6 +336,9 @@ pub struct BloodTraits {
 /// A horse retired from racing and kept for breeding (繁殖馬).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Stud {
+    /// What it has that few others have (固有特性).
+    #[serde(default)]
+    pub specials: Vec<Special>,
     pub name: String,
     pub sex: Sex,
     pub speed: u32,
@@ -676,6 +681,9 @@ pub struct StudEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HorseEntry {
+    pub body_weight: u32,
+    pub ideal_weight: u32,
+    pub specials: Vec<SpecialInfo>,
     /// The order given to its jockey (作戦), if any.
     pub order: Option<Style>,
     pub gelded: bool,
@@ -809,6 +817,10 @@ pub enum Workout {
     Dirt,
     /// 障害練習: schooling over fences, for a horse gone over to jumps.
     Jump,
+    /// ポリトラック: fast work on an all-weather surface, easy on the legs.
+    Poly,
+    /// ゲート練習: standing in the stalls, which settles a horse.
+    Gate,
 }
 
 /// An ability a workout can change.
@@ -845,7 +857,7 @@ pub struct WorkoutInfo {
 }
 
 impl Workout {
-    pub const ALL: [Workout; 7] = [
+    pub const ALL: [Workout; 9] = [
         Workout::Wood,
         Workout::Hill,
         Workout::Pool,
@@ -853,6 +865,8 @@ impl Workout {
         Workout::Walk,
         Workout::Dirt,
         Workout::Jump,
+        Workout::Poly,
+        Workout::Gate,
     ];
 
     pub fn name(self) -> &'static str {
@@ -864,6 +878,8 @@ impl Workout {
             Workout::Walk => "曳き運動",
             Workout::Dirt => "ダートコース",
             Workout::Jump => "障害練習",
+            Workout::Poly => "ポリトラック",
+            Workout::Gate => "ゲート練習",
         }
     }
 
@@ -876,6 +892,8 @@ impl Workout {
             Workout::Walk => "人が曳いて歩かせ、気性を落ち着かせます。",
             Workout::Dirt => "ダートを走らせて砂に慣れさせます。3回で適性が1段階上がります。",
             Workout::Jump => "障害を飛ばせて飛越を鍛えます。障害馬だけが行えます。",
+            Workout::Poly => "脚に優しい馬場で、速さとスタミナを少しずつ鍛えます。",
+            Workout::Gate => "ゲートに慣らして落ち着かせ、スタートの速さも磨きます。",
         }
     }
 
@@ -890,6 +908,17 @@ impl Workout {
             Workout::Walk => vec![g(Temper, 3)],
             Workout::Dirt => vec![g(Dirt, 1), g(Power, 1)],
             Workout::Jump => vec![g(Jump, 4), g(Power, 1)],
+            Workout::Poly => vec![g(Speed, 2), g(Stamina, 2)],
+            Workout::Gate => vec![g(Temper, 2), g(Speed, 1)],
+        }
+    }
+
+    /// Kilos a session takes off a horse.
+    pub fn weight_loss(self) -> u32 {
+        match self {
+            Workout::Hill | Workout::Pair | Workout::Dirt | Workout::Jump => 2,
+            Workout::Wood | Workout::Pool | Workout::Poly => 1,
+            Workout::Walk | Workout::Gate => 0,
         }
     }
 
@@ -897,6 +926,8 @@ impl Workout {
     pub fn fatigue(self) -> u32 {
         match self {
             Workout::Jump => 10,
+            Workout::Poly => 6,
+            Workout::Gate => 2,
             Workout::Hill => 10,
             Workout::Wood => 8,
             Workout::Pair => 12,
@@ -947,10 +978,16 @@ pub struct RaceSpec {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CardEntry {
+    pub body_weight: u32,
+    /// Kilos up or down since its last race.
+    pub body_change: i32,
+    pub specials: Vec<SpecialInfo>,
     pub name: String,
     pub gelded: bool,
     /// Jumping ability, in a jump race.
     pub jump: u32,
+    /// 瞬発 or 持久, for a horse leaning one way or the other.
+    pub kick: Option<String>,
     /// What the season is doing to it this week (夏負け and so on).
     pub season: Option<String>,
     pub speed: u32,
@@ -1014,6 +1051,8 @@ pub struct RaceCard {
     pub weather: Weather,
     /// How many fences there are (none on the flat).
     pub fences: u32,
+    /// How the race looks like being run, from who goes for the lead.
+    pub pace_outlook: String,
     pub entrants: Vec<CardEntry>,
     /// Every horse in the stable: whether it may run in this race and whether it is entered.
     pub my_horses: Vec<MyHorse>,
@@ -1251,6 +1290,17 @@ pub struct LeadingYear {
     pub sire: String,
 }
 
+/// The weight a horse runs best at, fixed for the horse (kg).
+pub(super) fn ideal_weight(blood_id: u32) -> u32 {
+    440 + (rivals::mix_seed(&[blood_id as u64, 0xB0D1]) % 81) as u32
+}
+
+/// Share of its ability a horse shows at this weight.
+pub(super) fn body_form(weight: u32, ideal: u32) -> f64 {
+    let off = weight.abs_diff(ideal).saturating_sub(BODY_ALLOWANCE);
+    (1.0 - off as f64 * BODY_LOSS).max(BODY_FORM_FLOOR)
+}
+
 /// A horse in the racing stable, and everything kept about it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StableHorse {
@@ -1289,6 +1339,15 @@ pub struct StableHorse {
     pub(super) jump_wins: u32,
     #[serde(default)]
     pub(super) year_jump_wins: u32,
+    /// Body weight (馬体重), in kilos.
+    #[serde(default)]
+    pub(super) body_weight: u32,
+    /// What it weighed at its last race.
+    #[serde(default)]
+    pub(super) last_race_weight: u32,
+    /// What it has that few others have (固有特性).
+    #[serde(default)]
+    pub(super) specials: Vec<Special>,
     /// Racing record (戦績).
     pub(super) record: RaceRecord,
     /// What the horse has done on the track.
@@ -1340,6 +1399,9 @@ impl StableHorse {
             jump_license: false,
             jump_wins: 0,
             year_jump_wins: 0,
+            body_weight: 0,
+            last_race_weight: 0,
+            specials: vec![],
             record: default_record(name),
             career: Career::default(),
             gear: Gear::default(),

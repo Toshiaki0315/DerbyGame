@@ -38,6 +38,15 @@ pub struct Entrant {
     pub gear: Gear,
     /// Jumping ability (飛越), for a horse that runs over fences.
     pub jump: u32,
+    /// Body weight, and its change since the last race.
+    pub body_weight: u32,
+    pub body_change: i32,
+    /// Share of its ability its weight lets it show.
+    pub body_form: f64,
+    /// What it has that few others have (固有特性).
+    pub specials: Vec<crate::bloodline::Special>,
+    /// Has been off long enough to count as fresh.
+    pub rested: bool,
     /// Fatigue (疲労度, 0-100); rivals come to a race fresh.
     pub fatigue: u32,
     /// The distances its trainer favours; rivals' trainers are not modelled.
@@ -242,6 +251,13 @@ pub fn generate(
                 Surface::Turf | Surface::Jump => rng.range(-2, 1),
             } as i8;
             let style = Some(rival_style(&mut rng));
+            // now and then a front-runner goes clear, on its own luck
+            let style = match style {
+                Some(Style::Nige) if mix_seed(&[seed, i as u64, 0x0091]).is_multiple_of(6) => {
+                    Some(Style::Oonige)
+                }
+                other => other,
+            };
             // spread like the blood DB's, where inbreeding has worn temperaments down
             let temper = rng.range(10, 70) as u32;
             let coat_color = rival_coat(&mut rng).to_string();
@@ -264,6 +280,11 @@ pub fn generate(
                 coat_color,
                 gear: rival_gear(&mut rng, temper),
                 jump: rival_jump(race, seed, i),
+                body_weight: 440 + (mix_seed(&[seed, i as u64, 0xB0D1]) % 81) as u32,
+                body_change: (mix_seed(&[seed, i as u64, 0xB0D2]) % 17) as i32 - 8,
+                body_form: 1.0,
+                specials: vec![],
+                rested: false,
                 fatigue: 0,
                 trainer_distance: None,
                 course_fit: None,
@@ -312,6 +333,11 @@ impl Star {
     pub fn entrant(&self, rng: &mut Rng) -> Entrant {
         Entrant {
             jump: 0,
+            body_weight: 480,
+            body_change: 0,
+            body_form: 1.0,
+            specials: vec![],
+            rested: false,
             name: self.name.clone(),
             speed: self.speed,
             stamina: self.stamina,

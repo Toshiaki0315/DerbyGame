@@ -22,6 +22,11 @@ export interface LeadingYear {
   sire: string;
 }
 
+export interface SpecialInfo {
+  name: string;
+  description: string;
+}
+
 export interface Gear {
   menko: boolean;
   shadow_roll: boolean;
@@ -117,6 +122,9 @@ export interface HorseEntry {
   trainer?: number;
   /** What it would sell for. */
   sale_price?: number;
+  body_weight?: number;
+  ideal_weight?: number;
+  specials?: SpecialInfo[];
   gelded?: boolean;
   jumper?: boolean;
   jump?: number;
@@ -153,7 +161,7 @@ export interface HistoryEntry {
   winner: string;
 }
 
-export type RunningStyle = "nige" | "senko" | "sashi" | "oikomi";
+export type RunningStyle = "oonige" | "nige" | "senko" | "sashi" | "oikomi";
 
 /** A lot in the yearling sale: its breeding and an estimate, not what it really is. */
 export interface AuctionLot {
@@ -467,6 +475,8 @@ export type BuyStyle = "normal" | "box" | "flow";
 export interface RoundOutcome {
   /** Those who started and did not finish. */
   stopped?: string[];
+  /** How the race was run. */
+  pace?: string;
   results: RaceResult[];
   frames: number[][];
   commentary: CommentLine[];
@@ -520,6 +530,12 @@ export interface Runner {
   mine: boolean;
   odds: number;
   place_odds: number;
+  body_weight?: number;
+  /** Kilos up or down since its last race. */
+  body_change?: number;
+  specials?: SpecialInfo[];
+  /** 瞬発 or 持久, for a horse leaning one way or the other. */
+  kick?: string | null;
   gelded?: boolean;
   jump?: number;
   /** What the season is doing to it this week. */
@@ -549,6 +565,8 @@ export interface RaceCard {
   weather?: Weather;
   /** How many fences there are (none on the flat). */
   fences?: number;
+  /** How the race looks like being run. */
+  pace_outlook?: string;
   entrants: Runner[];
   /** Every horse in the stable: whether it can run in this race and whether it is entered. */
   my_horses: { name: string; eligible: boolean; entered: boolean; gear?: Gear; fatigue?: number; resting?: boolean; away?: Away | null; barred?: string | null; registered?: boolean; drawn_out?: boolean }[];
@@ -573,4 +591,4 @@ export interface RaceKey {
 
 export type TabId = "race" | "train" | "stable" | "pedigree" | "breeding" | "calendar" | "info" | "honours";
 
-export type RunStyle = "nige" | "senko" | "sashi" | "oikomi";
+export type RunStyle = "oonige" | "nige" | "senko" | "sashi" | "oikomi";

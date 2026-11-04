@@ -122,6 +122,26 @@ pub fn season_note(name: &str, week: u8) -> Option<&'static str> {
     }
 }
 
+/// A horse's kick (瞬発力, above nothing) or staying power (持久力, below it), -2 to 2:
+/// the quick ones tend to kick and the stout ones to stay, and the rest is the horse.
+pub fn kick_of(name: &str, speed: u32, stamina: u32) -> i8 {
+    let hash = name.bytes().fold(0x811c_9dc5u64, |h, b| {
+        (h ^ b as u64).wrapping_mul(0x0100_0193)
+    });
+    let leaning = (speed as i64 - stamina as i64) / 15;
+    let own = crate::rivals::mix_seed(&[hash, 0x4B1C]) % 3;
+    (leaning + own as i64 - 1).clamp(-2, 2) as i8
+}
+
+/// How a horse's kick is written, if it has one.
+pub fn kick_label(kick: i8) -> Option<&'static str> {
+    match kick {
+        1.. => Some("瞬発"),
+        0 => None,
+        _ => Some("持久"),
+    }
+}
+
 /// How a race distance sits against a horse's range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -390,5 +410,24 @@ mod tests {
             assert_eq!(season_form(&horse, week), 1.0);
             assert_eq!(season_note(&horse, week), None);
         }
+    }
+
+    #[test]
+    fn the_quick_tend_to_kick_and_the_stout_to_stay() {
+        let names: Vec<String> = (0..200).map(|n| format!("ウマ{n}")).collect();
+        let total = |speed, stamina| {
+            names
+                .iter()
+                .map(|n| kick_of(n, speed, stamina) as i32)
+                .sum::<i32>()
+        };
+        assert!(total(90, 60) > total(60, 90));
+        for n in &names {
+            assert!((-2..=2).contains(&kick_of(n, 90, 40)));
+            assert_eq!(kick_of(n, 70, 70), kick_of(n, 70, 70));
+        }
+        assert_eq!(kick_label(2), Some("瞬発"));
+        assert_eq!(kick_label(0), None);
+        assert_eq!(kick_label(-1), Some("持久"));
     }
 }

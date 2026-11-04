@@ -26,7 +26,7 @@ export const mutationText = (mutations: string[]) =>
     .map(({ label }) => label)
     .join("・");
 
-export const ORDER_LABELS: [RunningStyle, string][] = [["nige", "逃げ"], ["senko", "先行"], ["sashi", "差し"], ["oikomi", "追込"]];
+export const ORDER_LABELS: [RunningStyle, string][] = [["oonige", "大逃げ"], ["nige", "逃げ"], ["senko", "先行"], ["sashi", "差し"], ["oikomi", "追込"]];
 
 export const starRecord = (s: Star) => `${s.starts}戦${s.wins}勝(G1 ${s.g1_wins}勝)`;
 
@@ -172,7 +172,7 @@ export const resultLine = (r: RaceResult, popularity: number | undefined) =>
 /** Age at which horses retire to stud at the turn of the year (as the backend's RETIRE_AGE). */
 export const RETIRE_AGE = 9;
 
-export const STYLE_WORDS: Record<RunStyle, string> = { nige: "逃げ", senko: "先行", sashi: "差し", oikomi: "追込" };
+export const STYLE_WORDS: Record<RunStyle, string> = { oonige: "大逃げ", nige: "逃げ", senko: "先行", sashi: "差し", oikomi: "追込" };
 
 /** Calm horses run to form; hot ones are erratic and may pull for their head. */
 export const temperMark = (v: number) => (v >= 65 ? "◎" : v >= 50 ? "○" : v >= 30 ? "△" : "×");

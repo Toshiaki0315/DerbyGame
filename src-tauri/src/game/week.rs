@@ -25,6 +25,12 @@ impl Game {
         self.run_star_races(&done);
         self.pay_upkeep();
         for h in &mut self.field {
+            let best = ideal_weight(h.blood_id);
+            h.body_weight = match h.body_weight.cmp(&best) {
+                std::cmp::Ordering::Less => (h.body_weight + WEEKLY_WEIGHT_CHANGE).min(best),
+                std::cmp::Ordering::Greater => (h.body_weight - WEEKLY_WEIGHT_CHANGE).max(best),
+                std::cmp::Ordering::Equal => best,
+            };
             h.since_race = h.since_race.saturating_add(1);
             let rest = if h.away.is_some() { REST_RECOVERY } else { 0 };
             h.fatigue = h.fatigue.saturating_sub(WEEKLY_RECOVERY + rest);

@@ -61,6 +61,8 @@ const KAKARI_SHARE: f64 = 0.5;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Style {
+    /// 大逃げ: goes clear from the start, and hopes to last.
+    Oonige,
     /// 逃げ: goes to the front.
     Nige,
     /// 先行: races just behind the leaders.
@@ -74,6 +76,7 @@ pub enum Style {
 impl Style {
     pub fn from_label(s: &str) -> Option<Self> {
         match s {
+            "大逃げ" => Some(Self::Oonige),
             "逃げ" => Some(Self::Nige),
             "先行" => Some(Self::Senko),
             "差し" => Some(Self::Sashi),
@@ -86,6 +89,7 @@ impl Style {
     /// race every style averages the same pace: no style is better in itself.
     fn early(self) -> f64 {
         match self {
+            Self::Oonige => 1.08,
             Self::Nige => 1.04,
             Self::Senko => 1.02,
             Self::Sashi => 0.98,
@@ -98,6 +102,61 @@ impl Style {
         1.0 - (self.early() - 1.0) * EARLY_SHARE / (1.0 - EARLY_SHARE)
     }
 }
+
+/// How a race is run (展開).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RacePace {
+    /// スロー: all together until the straight, and a sprint home (瞬発戦).
+    Slow,
+    Even,
+    /// ハイ: strung out, and whoever lasts (持久戦).
+    Fast,
+}
+
+impl RacePace {
+    pub fn label(self) -> &'static str {
+        match self {
+            RacePace::Slow => "スローペースの瞬発戦",
+            RacePace::Even => "平均ペース",
+            RacePace::Fast => "ハイペースの持久戦",
+        }
+    }
+
+    /// Which way a horse's late burst counts in a race run like this.
+    fn favours_kick(self) -> f64 {
+        match self {
+            RacePace::Slow => 1.0,
+            RacePace::Even => 0.0,
+            RacePace::Fast => -1.0,
+        }
+    }
+}
+
+/// What this many front-runners make of a race, more or less.
+pub fn pace_outlook(front_runners: usize) -> &'static str {
+    match front_runners {
+        0 => "逃げ馬がいないのでスローペースになりそうです。",
+        1..=3 => "平均的な流れになりそうです。",
+        _ => "逃げ馬が多く、ハイペースになりそうです。",
+    }
+}
+
+/// How many of these horses go for the lead.
+pub fn front_runners(styles: impl Iterator<Item = Option<Style>>) -> usize {
+    styles
+        .filter(|s| matches!(s, Some(Style::Nige | Style::Oonige)))
+        .count()
+}
+
+/// What each step of a horse's kick (瞬発力, or 持久力 below nothing) is worth in the
+/// straight, one way or the other.
+const KICK_EFFECT: f64 = 0.02;
+
+/// How much faster on the track a horse going clear (大逃げ) runs before the straight,
+/// and how much slower after: a race is won by far less than it opens up by.
+const CLEAR_EARLY: f64 = 0.5;
+const CLEAR_LATE: f64 = 0.75;
 
 /// Racing equipment (馬具).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -130,6 +189,8 @@ pub struct Traits {
     pub gear: Gear,
     /// Jumping ability (飛越), in a jump race.
     pub jump: Option<u32>,
+    /// Late burst, above nothing; staying power below it.
+    pub kick: i8,
 }
 
 impl Default for Traits {
@@ -139,6 +200,7 @@ impl Default for Traits {
             temper: NEUTRAL_TEMPER,
             gear: Gear::default(),
             jump: None,
+            kick: 0,
         }
     }
 }
@@ -167,6 +229,8 @@ pub struct Runner {
     pub jump: Option<u32>,
     /// Fences jumped so far.
     pub fences: u32,
+    /// Late burst, above nothing; staying power below it.
+    pub kick: i8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -236,6 +300,8 @@ pub struct Race {
     may_stop: usize,
     /// Mistakes at fences: the tick and the runner.
     pub blunders: Vec<(u32, usize)>,
+    /// How the race is run.
+    pub pace: RacePace,
 }
 
 impl Race {
@@ -276,15 +342,23 @@ impl Race {
                 stopped: false,
                 jump: t.jump,
                 fences: 0,
+                kick: t.kick,
             })
             .collect::<Vec<Runner>>();
-        let front_runners = runners
-            .iter()
-            .filter(|r| r.style == Some(Style::Nige))
-            .count();
+        let front_runners = front_runners(runners.iter().map(|r| r.style));
         let may_stop = runners.len().saturating_sub(MIN_FINISHERS);
+        let mut fate = Rng::new(mix_seed(&[seed, 0xFA11]));
+        let roll = fate.next_f64();
+        let pace = match front_runners {
+            0 => RacePace::Slow,
+            n if n >= 4 => RacePace::Fast,
+            _ if roll < 0.25 => RacePace::Slow,
+            _ if roll > 0.75 => RacePace::Fast,
+            _ => RacePace::Even,
+        };
         let mut race = Self {
-            fate: Rng::new(mix_seed(&[seed, 0xFA11])),
+            pace,
+            fate,
             may_stop,
             blunders: vec![],
             front_runners,
@@ -352,13 +426,13 @@ impl Race {
     }
 
     /// Pace from the runner's style and temperament at this point in the race.
-    fn tactics(r: &Runner, distance: f64, front_runners: usize) -> f64 {
+    fn tactics(r: &Runner, distance: f64, front_runners: usize, pace: RacePace) -> f64 {
         let share = r.position / distance;
         let mut m = match r.style {
             Some(style) if share < EARLY_SHARE => style.early(),
             Some(style) => {
                 let mut late = style.late();
-                if style == Style::Nige {
+                if matches!(style, Style::Nige | Style::Oonige) {
                     // front-runners take each other on and tire themselves out
                     late -= (DUEL_LOSS * front_runners.saturating_sub(1) as f64).min(MAX_DUEL_LOSS);
                 }
@@ -366,6 +440,9 @@ impl Race {
             }
             None => 1.0,
         };
+        if share >= EARLY_SHARE {
+            m *= 1.0 + pace.favours_kick() * r.kick as f64 * KICK_EFFECT;
+        }
         if r.kakari {
             m *= if share < KAKARI_SHARE {
                 KAKARI_EARLY
@@ -437,6 +514,7 @@ impl Race {
         let start = self.elapsed;
         self.elapsed += TICK_SECONDS;
         let front_runners = self.front_runners;
+        let pace = self.pace;
         let distance = self.distance;
         for i in 0..self.runners.len() {
             if self.runners[i].finish_time.is_some() || self.runners[i].stopped {
@@ -448,9 +526,18 @@ impl Race {
                 Self::velocity(r.speed, r.stamina, r.position)
                     * r.pace
                     * noise
-                    * Self::tactics(r, distance, front_runners),
+                    * Self::tactics(r, distance, front_runners, pace),
                 distance,
-            ) * if r.jump.is_some() { JUMP_PACE } else { 1.0 };
+            ) * if r.jump.is_some() { JUMP_PACE } else { 1.0 }
+                + if r.style == Some(Style::Oonige) {
+                    if r.position / distance < EARLY_SHARE {
+                        CLEAR_EARLY
+                    } else {
+                        -CLEAR_LATE
+                    }
+                } else {
+                    0.0
+                };
             let step = velocity * TICK_SECONDS;
             let before = r.position;
             let Some(new_pos) = self.on_its_way(i, before + step) else {
@@ -659,6 +746,7 @@ mod tests {
     fn styled(style: Option<Style>, temper: f64) -> Traits {
         Traits {
             jump: None,
+            kick: 0,
             style,
             temper,
             gear: Gear::default(),
@@ -774,6 +862,7 @@ mod tests {
             },
             2000.0,
             1,
+            RacePace::Even,
         );
         assert!((late - Style::Nige.late()).abs() < 1e-12);
         let duel = Race::tactics(
@@ -783,6 +872,7 @@ mod tests {
             },
             2000.0,
             3,
+            RacePace::Even,
         );
         assert!((late - duel - 2.0 * DUEL_LOSS).abs() < 1e-12);
         let crowd = Race::tactics(
@@ -792,6 +882,7 @@ mod tests {
             },
             2000.0,
             9,
+            RacePace::Even,
         );
         assert!((late - crowd - MAX_DUEL_LOSS).abs() < 1e-12);
     }
@@ -891,6 +982,7 @@ mod tests {
             },
             2000.0,
             0,
+            RacePace::Even,
         );
         let late = Race::tactics(
             &Runner {
@@ -899,6 +991,7 @@ mod tests {
             },
             2000.0,
             0,
+            RacePace::Even,
         );
         assert_eq!((early, late), (KAKARI_EARLY, KAKARI_LATE));
         const { assert!(KAKARI_SHARE / KAKARI_EARLY + (1.0 - KAKARI_SHARE) / KAKARI_LATE > 1.0) };
@@ -923,6 +1016,7 @@ mod tests {
     fn geared(temper: f64, menko: bool, shadow_roll: bool) -> Traits {
         Traits {
             jump: None,
+            kick: 0,
             style: None,
             temper,
             gear: Gear {
@@ -1061,6 +1155,7 @@ mod tests {
     fn blinkered(temper: f64, blinkers: bool) -> Traits {
         Traits {
             jump: None,
+            kick: 0,
             style: None,
             temper,
             gear: Gear {
@@ -1247,5 +1342,97 @@ mod tests {
         race.run_to_finish();
         assert!(race.blunders.is_empty());
         assert!(race.runners.iter().all(|r| r.fences == 0));
+    }
+
+    fn kicking(style: Option<Style>, kick: i8) -> Traits {
+        Traits {
+            style,
+            kick,
+            ..Traits::default()
+        }
+    }
+
+    fn run_with(traits: &[Traits], seed: u64) -> Race {
+        let mut race = Race::with_stopping(plain(traits.len()), traits, 2000.0, seed, 0.0);
+        race.run_to_finish();
+        race
+    }
+
+    #[test]
+    fn with_nobody_to_lead_a_race_is_slow_and_with_many_it_is_fast() {
+        for seed in 0..50 {
+            let none = vec![kicking(Some(Style::Sashi), 0); 8];
+            assert_eq!(run_with(&none, seed).pace, RacePace::Slow);
+            let many = vec![kicking(Some(Style::Nige), 0); 4];
+            assert_eq!(run_with(&many, seed).pace, RacePace::Fast);
+        }
+    }
+
+    #[test]
+    fn a_race_with_one_or_two_leaders_can_go_any_way() {
+        let mut seen = std::collections::HashSet::new();
+        let mut field = vec![kicking(Some(Style::Sashi), 0); 8];
+        field[0] = kicking(Some(Style::Nige), 0);
+        for seed in 0..100 {
+            seen.insert(format!("{:?}", run_with(&field, seed).pace));
+        }
+        assert_eq!(seen.len(), 3, "{seen:?}");
+    }
+
+    /// How often each of two horses wins, with one's kick against the other's stamina.
+    fn kicker_wins(front: Style, seeds: u64) -> u64 {
+        let mut field = vec![kicking(Some(front), 0); 6];
+        field[4] = kicking(Some(Style::Sashi), 2);
+        field[5] = kicking(Some(Style::Sashi), -2);
+        (0..seeds)
+            .filter(|&s| {
+                let race = run_with(&field, s);
+                let at = |n: &str| race.results().iter().position(|r| r.name == n).unwrap();
+                at("H4") < at("H5")
+            })
+            .count() as u64
+    }
+
+    #[test]
+    fn a_kick_tells_in_a_slow_race_and_staying_power_in_a_fast_one() {
+        let slow = kicker_wins(Style::Sashi, 300);
+        let fast = kicker_wins(Style::Nige, 300);
+        assert!(slow > 180, "{slow}");
+        assert!(fast < 120, "{fast}");
+    }
+
+    #[test]
+    fn a_horse_going_clear_is_well_ahead_early_and_comes_back_to_them() {
+        let mut field = vec![kicking(Some(Style::Senko), 0); 6];
+        field[0] = kicking(Some(Style::Oonige), 0);
+        let mut race = Race::with_stopping(plain(6), &field, 2000.0, 1, 0.0);
+        let frames = race.run_recording();
+        let lead_at = |share: f64| {
+            let f = frames.iter().find(|f| f[1] >= 2000.0 * share).unwrap();
+            f[0] - f[1]
+        };
+        assert!(lead_at(0.5) > 10.0, "{}", lead_at(0.5));
+        assert!(
+            lead_at(0.95) < lead_at(0.6),
+            "{} {}",
+            lead_at(0.95),
+            lead_at(0.6)
+        );
+    }
+
+    #[test]
+    fn a_race_says_how_it_was_run_and_a_card_what_to_expect() {
+        assert_eq!(RacePace::Slow.label(), "スローペースの瞬発戦");
+        assert_eq!(RacePace::Fast.label(), "ハイペースの持久戦");
+        assert!(pace_outlook(0).contains("スロー"));
+        assert!(pace_outlook(4).contains("ハイペース"));
+        let styles = [
+            Some(Style::Nige),
+            Some(Style::Oonige),
+            Some(Style::Sashi),
+            None,
+        ];
+        assert_eq!(front_runners(styles.into_iter()), 2);
+        assert_eq!(Style::from_label("大逃げ"), Some(Style::Oonige));
     }
 }

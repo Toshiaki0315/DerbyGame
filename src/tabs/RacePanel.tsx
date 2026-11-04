@@ -182,6 +182,7 @@ export default function RacePanel({ app }: { app: AppView }) {
               </li>
             ))}
           </ol>
+          {outcome.pace && <p className="race-pace">{`展開: ${outcome.pace}`}</p>}
           {(outcome.stopped?.length ?? 0) > 0 && <p className="stopped">{`競走中止: ${outcome.stopped!.join("、")}`}</p>}
           {(outcome.tickets?.length ?? 0) > 1 && (
             <ul className="ticket-results">

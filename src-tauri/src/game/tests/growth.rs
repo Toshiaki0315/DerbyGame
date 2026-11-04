@@ -190,7 +190,9 @@ fn the_race_card_shows_style_and_temperament_for_every_runner() {
     let g = Game::new();
     let v = serde_json::to_value(g.race_card(None).unwrap()).unwrap();
     for e in v["entrants"].as_array().unwrap() {
-        assert!(["nige", "senko", "sashi", "oikomi"].contains(&e["style"].as_str().unwrap()));
+        assert!(
+            ["oonige", "nige", "senko", "sashi", "oikomi"].contains(&e["style"].as_str().unwrap())
+        );
         assert!(e["temper"].as_u64().unwrap() <= 100);
     }
 }

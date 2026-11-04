@@ -100,6 +100,18 @@ impl Game {
         }
     }
 
+    /// Sets what a horse from before weights and characters were kept has of them.
+    pub(super) fn set_bodies_and_specials(&mut self) {
+        for i in 0..self.field.len() {
+            let id = self.field[i].blood_id;
+            let specials = self.blood_record(id).map_or(vec![], |r| r.specials);
+            let h = &mut self.field[i];
+            h.body_weight = ideal_weight(id);
+            h.last_race_weight = h.body_weight;
+            h.specials = specials;
+        }
+    }
+
     /// Gives each racehorse the legs its blood record says it was born with.
     pub(super) fn set_legs_from_blood(&mut self) {
         for horse in &mut self.field {

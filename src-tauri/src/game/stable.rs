@@ -8,6 +8,7 @@ impl Game {
         let horse = self.field.remove(i);
         self.forget(&horse.name);
         Stud {
+            specials: horse.specials,
             career: horse.career,
             legs: horse.legs,
             record: horse.record,
@@ -280,6 +281,11 @@ impl Game {
             salt,
         ]));
         let roll = rng.next_u64() as f64 / u64::MAX as f64;
+        let base = if self.field[i].specials.contains(&Special::Iron) {
+            base * 0.5
+        } else {
+            base
+        };
         if roll < injury_chance(base, self.field[i].fatigue, self.field[i].legs) {
             self.injure(i, Injury::from_roll(rng.next_u64() % 100));
         }
@@ -508,6 +514,9 @@ impl Game {
     pub(super) fn tire_runners(&mut self, spec: &RaceSpec, tiring: u32) {
         for e in spec.entrants.iter().filter(|e| e.mine) {
             if let Some(i) = self.field.iter().position(|h| h.name == e.name) {
+                let weight = self.field[i].body_weight;
+                self.field[i].last_race_weight = weight;
+                self.field[i].body_weight = weight.saturating_sub(RACE_WEIGHT_LOSS);
                 self.field[i].fatigue = (self.field[i].fatigue + tiring).min(MAX_FATIGUE);
             }
         }

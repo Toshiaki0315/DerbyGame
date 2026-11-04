@@ -30,7 +30,8 @@ impl Game {
             * coached
             * at_course
             * ridden
-            * load;
+            * load
+            * e.body_form;
         // over fences it is a different game, and flat form says little about the trip
         let dist = if surface == Surface::Jump {
             form::distance_effect(e.apt_min, e.apt_min, e.apt_max)
@@ -48,6 +49,25 @@ impl Game {
         (speed.round() as u32, stamina.round() as u32)
     }
 
+    /// What a horse's character does for it in this race.
+    fn character_form(e: &Entrant, spec: &RaceSpec) -> f64 {
+        let Some(race) = &spec.race else {
+            return 1.0;
+        };
+        let has = |s| e.specials.contains(&s);
+        let mut form = 1.0;
+        if has(Special::BigStage) && race.grade == Grade::G1 {
+            form *= BIG_STAGE_FORM;
+        }
+        if has(Special::Fresh) && e.rested {
+            form *= FRESH_FORM;
+        }
+        if has(Special::Mudlark) && spec.track != TrackCondition::Good {
+            form *= MUDLARK_FORM;
+        }
+        form
+    }
+
     pub(super) fn runners_for(spec: &RaceSpec) -> Vec<Horse> {
         spec.entrants
             .iter()
@@ -57,7 +77,9 @@ impl Game {
                     .race
                     .as_ref()
                     .map_or(1.0, |r| form::season_form(&e.name, r.week));
-                let scaled = |stat: u32| (stat as f64 * season).round() as u32;
+                let scaled = |stat: u32| {
+                    (stat as f64 * season * Self::character_form(e, spec)).round() as u32
+                };
                 Horse::new(&e.name, scaled(speed), scaled(stamina))
             })
             .collect()
@@ -96,6 +118,7 @@ impl Game {
                     if let Some(ride) = &e.jockey {
                         *self.year_wins.jockeys.entry(ride.id).or_default() += 1;
                     }
+                    self.maybe_bring_out_big_stage(i, spec);
                     let trainer = self.field[i].trainer;
                     *self.year_wins.trainers.entry(trainer).or_default() += 1;
                     let sire = self
@@ -111,6 +134,25 @@ impl Game {
                     self.roll_injury(i, STOP_INJURY, 0x57A1);
                 }
             }
+        }
+    }
+
+    /// A G1 win may show a horse to be one for the big occasion.
+    fn maybe_bring_out_big_stage(&mut self, i: usize, spec: &RaceSpec) {
+        let Some(race) = &spec.race else {
+            return;
+        };
+        let roll = self.race_seed(race, 0xB165) % 100;
+        if race.grade == Grade::G1
+            && !self.field[i].specials.contains(&Special::BigStage)
+            && roll < BIG_STAGE_PERCENT
+        {
+            self.field[i].specials.push(Special::BigStage);
+            let name = self.field[i].name.clone();
+            self.news.push(format!(
+                "{name}が固有特性「{}」に目覚めました。",
+                Special::BigStage.name()
+            ));
         }
     }
 
@@ -169,6 +211,10 @@ impl Game {
                 text: format!("{name}が競走中止!"),
             });
         }
+        lines.push(CommentLine {
+            frame: frames.len() / 3,
+            text: format!("{}で流れています。", race.pace.label()),
+        });
         lines.sort_by_key(|l| l.frame);
     }
 
@@ -205,6 +251,7 @@ impl Game {
                 temper: (e.temper + e.jockey.as_ref().map_or(0, |j| j.tact)).min(MAX_STAT) as f64,
                 gear: e.gear,
                 jump: (spec.surface == Surface::Jump).then(|| Self::jump_with_jockey(e)),
+                kick: form::kick_of(&e.name, e.speed, e.stamina),
             })
             .collect();
         Race::with_traits(Self::runners_for(spec), &traits, spec.distance as f64, seed)
@@ -235,6 +282,14 @@ impl Game {
         let against = order.is_some() && style.is_some() && order != style;
         Entrant {
             jump: self.field[i].jump,
+            body_weight: self.field[i].body_weight,
+            body_change: self.field[i].body_weight as i32 - self.field[i].last_race_weight as i32,
+            body_form: body_form(
+                self.field[i].body_weight,
+                ideal_weight(self.field[i].blood_id),
+            ),
+            specials: self.field[i].specials.clone(),
+            rested: self.field[i].since_race >= FRESH_WEEKS,
             temper: self.field[i].temper.saturating_sub(if against {
                 ORDER_TEMPER_COST
             } else {
@@ -250,7 +305,12 @@ impl Game {
             name: h.name.clone(),
             speed: h.speed,
             stamina: h.stamina,
-            condition: self.field[i].condition,
+            condition: match self.field[i].condition {
+                Condition::Poor if self.field[i].specials.contains(&Special::Steady) => {
+                    Condition::Normal
+                }
+                other => other,
+            },
             sex: self.field[i].sex,
             age: self.field[i].age,
             dirt: self.field[i].dirt,
@@ -663,6 +723,10 @@ impl Game {
             distance: spec.distance,
             surface: spec.surface,
             track: spec.track,
+            pace_outlook: race::pace_outlook(race::front_runners(
+                spec.entrants.iter().map(|e| e.style),
+            ))
+            .to_string(),
             fences: if spec.surface == Surface::Jump {
                 race::fences_in(spec.distance as f64)
             } else {
@@ -728,6 +792,9 @@ impl Game {
                 .zip(table)
                 .zip(popularity)
                 .map(|((e, (odds, place_odds)), popularity)| CardEntry {
+                    body_weight: e.body_weight,
+                    body_change: e.body_change,
+                    specials: e.specials.iter().map(|s| s.info()).collect(),
                     season: spec
                         .race
                         .as_ref()
@@ -735,6 +802,8 @@ impl Game {
                         .map(str::to_string),
                     gelded: e.mine && self.field.iter().any(|h| h.name == e.name && h.gelded),
                     jump: e.jump,
+                    kick: form::kick_label(form::kick_of(&e.name, e.speed, e.stamina))
+                        .map(str::to_string),
                     name: e.name.clone(),
                     speed: e.speed,
                     stamina: e.stamina,

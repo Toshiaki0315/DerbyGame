@@ -54,6 +54,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
             {card?.track && card.track !== "good" && <span className="muted">道悪適性の高い馬が有利です。</span>}
           </p>
         )}
+        {card?.pace_outlook && <p className="pace-outlook" aria-label="展開予想">{`展開予想: ${card.pace_outlook}`}</p>}
         {card && (
           <fieldset className="entries">
             <legend>{`出走登録(最大${card.max_entries}頭)`}</legend>
@@ -139,6 +140,8 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                   {h.name}
                   {h.mine && <span className="mine" aria-label="自馬">★</span>}
                   {h.season && <span className="season-note">{h.season}</span>}
+                  {(h.specials ?? []).map((s) => <span key={s.name} className="special-note" title={s.description}>{s.name}</span>)}
+                  {h.kick && <span className={`kick-note ${h.kick === "瞬発" ? "burst" : "stay"}`}>{h.kick}</span>}
                   {h.star && (() => {
                     const known = game.stars?.find((x) => x.name === h.name);
                     return (
@@ -148,7 +151,14 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                     );
                   })()}
                 </td>
-                <td align="center">{`${sexLabel(h)}${h.age ?? ""}`}</td>
+                <td align="center">
+                  {`${sexLabel(h)}${h.age ?? ""}`}
+                  {h.body_weight ? (
+                    <small className="body-weight" title="馬体重です。カッコ内は前走からの増減です。">
+                      {`${h.body_weight}(${h.body_change && h.body_change > 0 ? "+" : ""}${h.body_change ?? 0})`}
+                    </small>
+                  ) : null}
+                </td>
                 <td align="center">{h.speed}</td>
                 <td align="center">{h.stamina}</td>
                 <td align="center">{h.power ?? "-"}</td>
@@ -233,7 +243,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                 <td align="center">{`x${h.odds.toFixed(1)}`}</td>
                 <td align="center">{`x${h.place_odds.toFixed(1)}`}</td>
                 <td align="center" aria-label={`${h.name}: ${h.popularity}番人気`}>{h.popularity}</td>
-                {overFences && <td align="center">{h.jump}</td>}
+                                {overFences && <td align="center">{h.jump}</td>}
               </tr>
             ))}
           </tbody>

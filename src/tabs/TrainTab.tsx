@@ -59,6 +59,12 @@ export default function TrainTab({ app }: { app: AppView }) {
                       <span>{trainers.find((t) => t.id === h.trainer)?.name ?? "-"}</span>
                       <span>{h.record ? recordText(h.record) : "-"}</span>
                       {h.jumper && <span aria-label={`${h.name}の飛越`}>{`飛越 ${h.jump ?? 0}`}</span>}
+                      {h.body_weight !== undefined && (
+                        <span aria-label={`${h.name}の馬体重`} title="ベストから10kgを超えて離れると、力を出し切れません。">
+                          {`${h.body_weight}kg(ベスト${h.ideal_weight ?? "-"})`}
+                        </span>
+                      )}
+                      {(h.specials ?? []).map((s) => <span key={s.name} className="special-note" title={s.description}>{s.name}</span>)}
                     </div>
                   </td>
                   <td align="center">{h.speed}</td>

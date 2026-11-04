@@ -32,7 +32,7 @@ table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { white-space: nowrap; font-size: 12px; color: #6b665a; padding: 4px 6px; }
 td { padding: 6px 4px; border-top: 1px solid #e4dfd0; }
 tr.picked td { background: #fff7d6; }
-td.name { white-space: nowrap; font-weight: 600; }
+td.name { min-width: 170px; font-weight: 600; }
 td.train { white-space: nowrap; }
 td.train { text-align: right; }
 td.train button { margin-left: 4px; padding: 3px 6px; font-size: 11px; }
@@ -368,3 +368,10 @@ button.link { background: none; border: none; padding: 0; color: #14532d; font-w
 .leading-history { margin: 12px 0 0; padding-left: 18px; font-size: 13px; }
 .map-fence { fill: #7a4b2a; }
 .stopped { color: #b3261e; font-weight: 600; }
+.kick-note { margin-left: 6px; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.kick-note.burst { background: #dcebfa; color: #2a6f97; }
+.kick-note.stay { background: #e4efdc; color: #2e6b3c; }
+.pace-outlook { margin: 0 0 8px; font-size: 13px; color: #6b665a; }
+.race-pace { margin: 4px 0; font-size: 13px; }
+.special-note { margin-left: 6px; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700; background: #fff0c2; color: #8a5a00; }
+.body-weight { display: block; font-size: 11px; color: #6b665a; white-space: nowrap; }
