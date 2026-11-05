@@ -4,17 +4,19 @@ import { inbreedText } from "../Bloodline";
 import { DEBUT_AGE, RETIRE_AGE, SEX_LABEL, statLabel } from "../labels";
 import { NAME_RULE, isValidHorseName } from "../naming";
 import { AppView } from "../view";
-import { HorseIcon } from "../widgets";
+import { Fold, HorseIcon } from "../widgets";
 
 export default function BreedingTab({ app }: { app: AppView }) {
-  const { bidFor, bidResult, bids, breed, buyStud, canBreed, damSel, females, foalName, game, inFoal, lots, market, matingCost, outlook, outlookError, outsideSires, parentLabel, pregnancies, racing, releaseStud, retireSel, roomInStable, setBids, setDam, setFoalName, setRetire, setSire, sireSel, sires, studs, studsFull, upgradeFarm } = app;
+  const { bidFor, bidResult, bids, breed, buyStud, canBreed, damSel, females, foalName, foldProps, game, inFoal, lots, market, matingCost, outlook, outlookError, outsideSires, parentLabel, pregnancies, racing, releaseStud, retireSel, roomInStable, setBids, setDam, setFoalName, setRetire, setSire, sireSel, sires, studs, studsFull, upgradeFarm } = app;
   return (
       <main role="tabpanel" aria-label="繁殖">
         <section className="panel breeding">
           <h2>配合</h2>
+          <Fold {...foldProps("mating-help")} className="help" summary="配合の説明">
           <p className="muted">
             引退した種牡馬(または外部の種牡馬)と繁殖牝馬を種付けします。受胎しないこともあり、その場合も費用はかかります。受胎すると仔馬は約1年後に0歳で生まれ、厩舎の空き枠か入れ替える馬の枠に入り、能力と血統を両親から受け継ぎます。入れ替える馬は生まれるまで走り続けます。仔馬は生まれて1年間は牧場で育ち、そのあと調教を始めて、{DEBUT_AGE}歳からレースに出られます。受胎中の牝馬は、出産するまで次の種付けができません。
           </p>
+          </Fold>
           {game.breeding_start_week !== undefined && (
             <p className={game.breeding_open ? "season" : "season closed"}>
               {`種付けできるのは第${game.breeding_start_week}週〜第${game.breeding_end_week}週(3月〜5月)です。${

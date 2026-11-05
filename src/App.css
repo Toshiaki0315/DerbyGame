@@ -154,6 +154,12 @@ td.train button { margin-left: 4px; padding: 3px 6px; font-size: 11px; }
 .honours .title { background: #ffe27a; color: #14532d; border-radius: 10px; padding: 0 8px; font-size: 12px; }
 .help { margin-bottom: 10px; font-size: 13px; }
 .help summary { cursor: pointer; color: #1f5135; font-weight: 700; }
+.fold-part > summary { cursor: pointer; }
+.fold-part > summary h2 { display: inline; margin: 0; }
+.fold-note { margin-left: 8px; font-size: 12px; color: #6b665a; }
+.stable summary { cursor: pointer; }
+.stable summary h3 { display: inline; }
+.stable summary .count { margin-left: 8px; }
 .training td.who { min-width: 170px; }
 .who-name { display: flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
 .who-more { display: flex; flex-wrap: wrap; gap: 0 8px; font-size: 11px; color: #6b665a; }
@@ -214,7 +220,7 @@ td.train button { margin-left: 4px; padding: 3px 6px; font-size: 11px; }
 .side { margin: 10px 0 6px; font-size: 14px; color: #1f5135; border-bottom: 2px solid #cfe0d4; }
 .nominations { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 4px 0; font-size: 13px; }
 .drawn-out { margin-left: 2px; color: #b42318; font-weight: 700; }
-.stables { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+.stables { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; align-items: start; }
 .stable { border: 1px solid #ddd8c6; border-radius: 12px; padding: 10px 14px; }
 .stable header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .stable h3 { margin: 0; font-size: 15px; color: #1f5135; }
@@ -283,7 +289,11 @@ button.link { background: none; border: none; padding: 0; color: #14532d; font-w
 .bet .error, .bet .muted { margin: 0; align-self: center; font-size: 13px; }
 .bet .error { color: #b3261e; }
 .entries { border: 1px solid #d9d4c2; border-radius: 8px; margin: 0 0 12px; padding: 6px 12px 10px; }
-.entries legend { font-size: 13px; font-weight: 700; color: #14532d; padding: 0 6px; }
+.entries summary { cursor: pointer; font-size: 13px; }
+.entries[open] summary { margin-bottom: 6px; }
+.entries-title { font-weight: 700; color: #14532d; }
+.entries-names { margin-left: 8px; color: #4a4638; }
+.entries-draw { margin-left: 8px; padding: 0 6px; border-radius: 4px; background: #fde68a; color: #7c2d12; font-size: 12px; }
 .entries p { margin: 0 0 6px; font-size: 12px; }
 .entry-list { display: flex; flex-direction: column; gap: 4px; }
 .entry-list .entry { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 3px 0; border-top: 1px solid #e4dfd0; }

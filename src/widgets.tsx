@@ -52,6 +52,23 @@ export function SideOptions<T extends { region?: string }>({ people, option }: {
   );
 }
 
+/** A part of a screen that opens and closes from its heading; the state lives above the tabs, so it survives them. */
+export function Fold({ open, onToggle, summary, className, children }: { open: boolean; onToggle: () => void; summary: ReactNode; className?: string; children: ReactNode }) {
+  return (
+    <details className={className} open={open}>
+      <summary
+        onClick={(e) => {
+          e.preventDefault();
+          onToggle();
+        }}
+      >
+        {summary}
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 export function FormBadge({ horse }: { horse: { name: string; condition: Condition } }) {
   return (
     <span className={`form ${horse.condition}`} aria-label={`${horse.name}の調子: ${CONDITION_LABEL[horse.condition]}`}>

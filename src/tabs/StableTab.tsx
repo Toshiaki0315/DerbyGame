@@ -2,10 +2,13 @@
 
 import { ORDER_LABELS, sexLabel, bySide, recordText } from "../labels";
 import { AppView } from "../view";
-import { HorseIcon, SideOptions } from "../widgets";
+import { Fold, HorseIcon, SideOptions } from "../widgets";
 
 export default function StableTab({ app }: { app: AppView }) {
-  const { abroadHorse, acceptAdvice, advice, busy, game, geldHorse, goAbroad, goOverToJumps, takeJumpExam, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
+  const { abroadHorse, acceptAdvice, advice, busy, foldProps, game, geldHorse, goAbroad, goOverToJumps, takeJumpExam, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
+  // a race that can take one of my horses opens the part by itself, until it is closed for that race
+  const taking = (game.overseas ?? []).filter((r) => r.open && r.candidates.length > 0);
+  const away = game.expeditions ?? [];
   return (
       <main role="tabpanel" aria-label="厩舎">
         <section className="panel">
@@ -18,7 +21,17 @@ export default function StableTab({ app }: { app: AppView }) {
           </details>
           {game.overseas && (
             <section className="panel" aria-label="海外遠征">
-              <h2>海外遠征</h2>
+              <Fold
+                {...foldProps(`overseas:${taking.map((r) => r.id).join()}`, taking.length > 0)}
+                className="fold-part"
+                summary={
+                  <>
+                    <h2>海外遠征</h2>
+                    {taking.length > 0 && <span className="fold-note">{`受付中${taking.length}件`}</span>}
+                    {away.length > 0 && <span className="fold-note">{`遠征中${away.length}頭`}</span>}
+                  </>
+                }
+              >
               <p className="muted">{`G1を勝った3歳以上の馬(または獲得賞金5000以上の馬)を海外の大レースに送れます。レースの8週前から2週前まで受け付け、費用は${game.expedition_cost}です。遠征中はほかのレースに出られません。`}</p>
               {(game.expeditions ?? []).map((e) => (
                 <p key={e.horse} className="season">{`${e.horse}が${e.race}に遠征中です。`}</p>
@@ -53,20 +66,17 @@ export default function StableTab({ app }: { app: AppView }) {
                   );
                 })}
               </ul>
+              </Fold>
             </section>
           )}
           {bySide(trainers).map(([side, here]) => (
           <section key={side} aria-label={side ? `${side}の厩舎` : undefined}>
           {side && <h3 className="side">{side}</h3>}
           <div className="stables">
-            {here.map((t) => {
+            {[...here].sort((a, b) => Number(inStable(b.id).length > 0) - Number(inStable(a.id).length > 0)).map((t) => {
               const horses = inStable(t.id);
-              return (
-                <section key={t.id} className="stable" aria-label={`${t.name}厩舎`}>
-                  <header>
-                    <h3>{`${t.name}厩舎`}</h3>
-                    <span className="count">{`${horses.length}/${stableCapacity}頭`}</span>
-                  </header>
+              const about = (
+                <>
                   <ul className="tendencies">
                     <li>{`調教: ${t.training}`}</li>
                     <li>{`距離: ${t.distance}`}</li>
@@ -74,9 +84,32 @@ export default function StableTab({ app }: { app: AppView }) {
                     <li>{`目標: ${t.aim}`}</li>
                   </ul>
                   <p className="muted">{t.description}</p>
+                </>
+              );
+              const count = <span className="count">{`${horses.length}/${stableCapacity}頭`}</span>;
+              return (
+                <section key={t.id} className="stable" aria-label={`${t.name}厩舎`}>
                   {horses.length === 0 ? (
-                    <p className="muted">預けている馬はいません。</p>
+                    <Fold
+                      {...foldProps(`stable:${t.id}`)}
+                      summary={
+                        <>
+                          <h3>{`${t.name}厩舎`}</h3>
+                          <span className="fold-note">{`${t.training}・${t.distance}`}</span>
+                          {count}
+                        </>
+                      }
+                    >
+                      {about}
+                      <p className="muted">預けている馬はいません。</p>
+                    </Fold>
                   ) : (
+                    <>
+                    <header>
+                      <h3>{`${t.name}厩舎`}</h3>
+                      {count}
+                    </header>
+                    {about}
                     <ul className="stable-horses">
                       {horses.map((h) => (
                         <li key={h.name}>
@@ -200,6 +233,7 @@ export default function StableTab({ app }: { app: AppView }) {
                         </li>
                       ))}
                     </ul>
+                    </>
                   )}
                 </section>
               );

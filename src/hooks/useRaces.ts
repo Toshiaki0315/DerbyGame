@@ -16,6 +16,8 @@ export function useRaces(core: Core, autoplay: boolean) {
   const [cardState, setCardState] = useState<{ race: string; card: RaceCard } | null>(null);
   const [cardVersion, setCardVersion] = useState(0); // bump to load the field again
   const card = cardState && cardState.race === raceSel ? cardState.card : null;
+  const [entriesOpen, setEntriesOpen] = useState(false);
+  const [alertClosed, setAlertClosed] = useState(""); // the race whose opened list was closed
 
   const weekRaces = racesOfWeek(calendar?.races ?? [], game?.week);
   const chosenRace = weekRaces.find((r) => raceValue(r) === raceSel) ?? null;
@@ -63,6 +65,22 @@ export function useRaces(core: Core, autoplay: boolean) {
 
   const isRegistered = (h: RaceCard["my_horses"][number]) => h.registered ?? h.entered;
 
+  // the entry list stays folded or open as the player left it, except that a race whose draw
+  // may leave my horse out opens by itself, until it is closed for that race
+  const registered = card?.my_horses.filter(isRegistered) ?? [];
+  const drawAhead =
+    chosenRace !== null &&
+    chosenRace.grade !== "g1" &&
+    (card?.nominated ?? 0) > (card?.gate ?? Infinity) &&
+    registered.length > 0;
+  const entryAlert = drawAhead || registered.some((h) => h.drawn_out);
+  const alertKey = `${game?.year}:${game?.week}:${raceSel}`;
+  const entriesShown = entryAlert ? alertClosed !== alertKey : entriesOpen;
+  const toggleEntries = () => {
+    if (entryAlert) setAlertClosed(entriesShown ? alertKey : "");
+    else setEntriesOpen(!entriesOpen);
+  };
+
   // enter or take out one of my horses (the rest of the field is rivals)
   const toggleEntry = async (name: string) => {
     if (!card) return;
@@ -93,6 +111,10 @@ export function useRaces(core: Core, autoplay: boolean) {
     toggleIn,
     isRegistered,
     toggleEntry,
+    registered,
+    drawAhead,
+    entriesShown,
+    toggleEntries,
   };
 }
 

@@ -10,7 +10,7 @@ import { ReactNode } from "react";
 
 export default function RaceTab({ app, messages }: { app: AppView; messages: ReactNode }) {
   const overFences = app.card?.surface === "jump";
-  const { busy, canRun, card, chooseRaceOf, chosenRace, game, isRegistered, nextWeek, raceFatigueLimit, raceGroups, raceSel, runners, selection, toggleEntry } = app;
+  const { busy, canRun, card, chooseRaceOf, chosenRace, drawAhead, entriesShown, game, isRegistered, nextWeek, raceFatigueLimit, raceGroups, raceSel, registered, runners, selection, toggleEntries, toggleEntry } = app;
   return (
     <>
     <div className="weekbar">
@@ -56,8 +56,21 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
         )}
         {card?.pace_outlook && <p className="pace-outlook" aria-label="展開予想">{`展開予想: ${card.pace_outlook}`}</p>}
         {card && (
-          <fieldset className="entries">
-            <legend>{`出走登録(最大${card.max_entries}頭)`}</legend>
+          <details className="entries" open={entriesShown}>
+            <summary
+              onClick={(e) => {
+                e.preventDefault(); // the state decides, so that it survives the card being loaded again
+                toggleEntries();
+              }}
+            >
+              <span className="entries-title">{`出走登録(${registered.length}/${card.max_entries}頭)`}</span>
+              <span className="entries-names">
+                {registered.length > 0
+                  ? registered.map((h) => (h.drawn_out ? `${h.name}(抽選で除外)` : h.name)).join("、")
+                  : "なし"}
+              </span>
+              {drawAhead && <span className="entries-draw">抽選あり</span>}
+            </summary>
             <p className="muted">{`自分の馬は最大${card.max_entries}頭まで出走できます。残りは相手馬です。`}</p>
             <p className="muted">
               {(card.trial_for ?? []).map((g1) => (
@@ -123,7 +136,7 @@ export default function RaceTab({ app, messages }: { app: AppView; messages: Rea
                 );
               })}
             </div>
-          </fieldset>
+          </details>
         )}
         <table>
           <thead>

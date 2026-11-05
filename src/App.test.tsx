@@ -634,6 +634,154 @@ describe("App", () => {
     });
   });
 
+  describe("folding the long parts of the tabs", () => {
+    const start = async (over: object, tab: string, more: object = {}) => {
+      mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, ...over }, ...more });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: tab }));
+    };
+    const leaveAndComeBack = (tab: string) => {
+      fireEvent.click(screen.getByRole("tab", { name: "レース" }));
+      fireEvent.click(screen.getByRole("tab", { name: tab }));
+    };
+    const foldOf = (text: string | RegExp) => screen.getByText(text).closest("details") as HTMLDetailsElement;
+    const toggle = async (fold: () => HTMLDetailsElement) => {
+      const before = fold().open;
+      fireEvent.click(fold().querySelector("summary")!);
+      await waitFor(() => expect(fold().open).toBe(!before));
+    };
+
+    describe("the workouts on the training tab", () => {
+      const workoutFold = () => foldOf(/^調教メニューの説明/);
+
+      it("are folded at first, saying how many there are", async () => {
+        await start({}, "育成");
+        expect(workoutFold().open).toBe(false);
+        expect(workoutFold().querySelector("summary")!.textContent).toBe(`調教メニューの説明(${state.workouts.length}種類)`);
+        expect(within(workoutFold()).getByText("ウッドコース追い")).toBeTruthy();
+      });
+
+      it("stay open after leaving the tab and coming back", async () => {
+        await start({}, "育成");
+        await toggle(workoutFold);
+        leaveAndComeBack("育成");
+        expect(workoutFold().open).toBe(true);
+      });
+
+      it("leave the menu of each horse outside the fold", async () => {
+        await start({}, "育成");
+        expect(workoutFold().contains(screen.getByLabelText("Fastの調教メニュー"))).toBe(false);
+      });
+    });
+
+    describe("racing abroad on the stable tab", () => {
+      const race = { id: 2, name: "凱旋門賞", country: "フランス", week: 40, surface: "turf", distance: 2400, first_prize: 2500, open: false, candidates: [] as string[] };
+      const taking = { ...race, open: true, candidates: ["Fast"] };
+      const abroadFold = () => within(screen.getByRole("region", { name: "海外遠征" })).getByText("海外遠征").closest("details") as HTMLDetailsElement;
+      const summary = () => abroadFold().querySelector("summary")!.textContent;
+
+      it("is folded when no race is taking my horses", async () => {
+        await start({ overseas: [race], expeditions: [] }, "厩舎");
+        expect(abroadFold().open).toBe(false);
+        expect(summary()).toBe("海外遠征");
+      });
+
+      it("is folded when a race is taking entries but I have no horse for it", async () => {
+        await start({ overseas: [{ ...race, open: true }], expeditions: [] }, "厩舎");
+        expect(abroadFold().open).toBe(false);
+      });
+
+      it("opens by itself when a race is taking my horses, and says how many", async () => {
+        await start({ overseas: [taking], expeditions: [] }, "厩舎");
+        expect(abroadFold().open).toBe(true);
+        expect(summary()).toContain("受付中1件");
+      });
+
+      it("stays closed once closed, until another race starts taking my horses", async () => {
+        const next = { ...state, overseas: [taking, { ...taking, id: 3, name: "香港カップ" }], expeditions: [] };
+        await start({ overseas: [taking], expeditions: [] }, "厩舎", { next_week: next });
+        await toggle(abroadFold);
+        leaveAndComeBack("厩舎");
+        expect(abroadFold().open).toBe(false);
+        fireEvent.click(screen.getByRole("tab", { name: "レース" }));
+        fireEvent.click(screen.getByRole("button", { name: "次の週へ" }));
+        await waitFor(() => expect(vi.mocked(invoke).mock.calls.some((c) => c[0] === "next_week")).toBe(true));
+        await screen.findByRole("button", { name: "次の週へ" });
+        fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
+        await waitFor(() => expect(abroadFold().open).toBe(true));
+      });
+
+      it("says on the fold who is away", async () => {
+        await start({ overseas: [race], expeditions: [{ horse: "Fast", race: "凱旋門賞", year: 1 }] }, "厩舎");
+        expect(summary()).toContain("遠征中1頭");
+      });
+    });
+
+    describe("the stables on the stable tab", () => {
+      const trainer = (id: number, name: string) => ({ id, name, training: "スパルタ", distance: "短距離", rotation: "連闘も辞さない", aim: "堅実に賞金", description: "叩きます。" });
+      const staffed = {
+        trainers: [trainer(0, "鬼塚 剛志"), trainer(1, "獅子堂 健")],
+        field: state.field.map((h: object) => ({ ...h, trainer: 0 })),
+      };
+      const stableFold = (name: string) => screen.getByRole("region", { name: `${name}厩舎` }).querySelector("details") as HTMLDetailsElement;
+
+      it("fold one without horses, keeping its name, room and leaning on the fold", async () => {
+        await start(staffed, "厩舎");
+        const fold = stableFold("獅子堂 健");
+        expect(fold.open).toBe(false);
+        const summary = fold.querySelector("summary")!.textContent;
+        expect(summary).toContain("獅子堂 健厩舎");
+        expect(summary).toContain("0/10頭");
+        expect(summary).toContain("スパルタ・短距離");
+        expect(within(fold).getByText("預けている馬はいません。")).toBeTruthy();
+      });
+
+      it("put the ones with my horses first, so that the folded ones sit together", async () => {
+        const later = { ...staffed, field: state.field.map((h: object) => ({ ...h, trainer: 1 })) };
+        await start(later, "厩舎");
+        const names = screen.getAllByRole("region", { name: /厩舎$/ }).map((r) => r.getAttribute("aria-label"));
+        expect(names).toEqual(["獅子堂 健厩舎", "鬼塚 剛志厩舎"]);
+      });
+
+      it("never fold one with my horses", async () => {
+        await start(staffed, "厩舎");
+        expect(stableFold("鬼塚 剛志")).toBeNull();
+        expect(screen.getByLabelText("Fastの厩舎")).toBeTruthy();
+      });
+
+      it("stay open after leaving the tab and coming back", async () => {
+        await start(staffed, "厩舎");
+        await toggle(() => stableFold("獅子堂 健"));
+        leaveAndComeBack("厩舎");
+        expect(stableFold("獅子堂 健").open).toBe(true);
+      });
+    });
+
+    describe("the explanation of mating on the breeding tab", () => {
+      const matingFold = () => foldOf("配合の説明");
+
+      it("is folded at first, with the text inside", async () => {
+        await start({}, "繁殖");
+        expect(matingFold().open).toBe(false);
+        expect(within(matingFold()).getByText(/受胎しないこともあり/)).toBeTruthy();
+      });
+
+      it("leaves the season and the mating itself outside the fold", async () => {
+        await start({ breeding_open: true, breeding_start_week: 10, breeding_end_week: 22 }, "繁殖");
+        expect(matingFold().contains(screen.getByText(/種付けできるのは/))).toBe(false);
+        expect(matingFold().contains(screen.getByLabelText("父馬(牡)"))).toBe(false);
+      });
+
+      it("stays open after leaving the tab and coming back", async () => {
+        await start({}, "繁殖");
+        await toggle(matingFold);
+        leaveAndComeBack("繁殖");
+        expect(matingFold().open).toBe(true);
+      });
+    });
+  });
+
   describe("racing abroad and sire lines", () => {
     const arc = { id: 2, name: "凱旋門賞", country: "フランス", week: 40, surface: "turf", distance: 2400, first_prize: 2500, open: true, candidates: ["Fast"] };
     const abroad = { ...state, expedition_cost: 500, overseas: [arc, { ...arc, id: 3, name: "香港カップ", country: "香港", week: 50, open: false, candidates: [] }], expeditions: [] };
@@ -1372,6 +1520,52 @@ describe("App", () => {
       render(<App />);
       await ready();
       expect(screen.queryByText(/フルゲート/)).toBeNull();
+    });
+
+    const entryPanel = () => document.querySelector("details.entries") as HTMLDetailsElement;
+    const overGate = { ...card, nominated: 21, gate: 16 };
+
+    it("opens the entry list by itself when my horse may lose the draw", async () => {
+      calendarBackend(undefined, { get_race_card: cardFor(overGate) });
+      await chooseG3();
+      expect(entryPanel().open).toBe(true);
+      expect(entryPanel().querySelector("summary")!.textContent).toContain("抽選あり");
+    });
+
+    it("lets the player close the list of a race with a draw, and it stays closed", async () => {
+      calendarBackend(undefined, { get_race_card: cardFor(overGate) });
+      await chooseG3();
+      fireEvent.click(entryPanel().querySelector("summary")!);
+      await waitFor(() => expect(entryPanel().open).toBe(false));
+      fireEvent.change(screen.getByLabelText("レース"), { target: { value: "free" } });
+      fireEvent.change(screen.getByLabelText("レース"), { target: { value: "sat:kyoto:11" } });
+      await screen.findByText("ライバルA", { selector: "td.name" });
+      expect(entryPanel().open).toBe(false);
+    });
+
+    it("leaves the list folded when none of my horses are in the draw", async () => {
+      const notIn = { ...overGate, my_horses: [{ name: "Fast", eligible: true, entered: false }] };
+      calendarBackend(undefined, { get_race_card: cardFor(notIn) });
+      await chooseG3();
+      expect(entryPanel().open).toBe(false);
+    });
+
+    it("leaves the list folded when the race has room", async () => {
+      calendarBackend(undefined, { get_race_card: cardFor({ ...card, nominated: 12, gate: 18 }) });
+      await chooseG3();
+      expect(entryPanel().open).toBe(false);
+      expect(entryPanel().querySelector("summary")!.textContent).not.toContain("抽選あり");
+    });
+
+    it("opens the list and marks the horse on the fold when it lost the draw", async () => {
+      const lost = {
+        ...card,
+        my_horses: [{ name: "Fast", eligible: true, entered: false, registered: true, drawn_out: true }],
+      };
+      calendarBackend(undefined, { get_race_card: cardFor(lost) });
+      await chooseG3();
+      expect(entryPanel().open).toBe(true);
+      expect(entryPanel().querySelector("summary")!.textContent).toContain("Fast(抽選で除外)");
     });
 
     it("shows a horse that lost the draw as still registered but not running", async () => {
@@ -3775,11 +3969,56 @@ describe("App", () => {
     entryBackend(["アルファ"]);
     render(<App />);
     await ready();
-    expect(screen.getByText("出走登録(最大3頭)")).toBeTruthy();
+    expect(screen.getByText("出走登録(1/3頭)")).toBeTruthy();
     expect(screen.getByText("自分の馬は最大3頭まで出走できます。残りは相手馬です。")).toBeTruthy();
     for (const name of STABLE) expect(entryBox(name)).toBeTruthy();
     expect(entryBox("アルファ").checked).toBe(true);
     expect(entryBox("ベータ").checked).toBe(false);
+  });
+
+  const entryPanel = () => document.querySelector("details.entries") as HTMLDetailsElement;
+
+  it("folds the entry list at first, saying who is entered", async () => {
+    entryBackend(["アルファ", "ベータ"]);
+    render(<App />);
+    await ready();
+    expect(entryPanel().open).toBe(false);
+    const summary = entryPanel().querySelector("summary")!;
+    expect(summary.textContent).toContain("出走登録(2/3頭)");
+    expect(summary.textContent).toContain("アルファ、ベータ");
+  });
+
+  it("says so on the fold when nobody is entered", async () => {
+    entryBackend([]);
+    render(<App />);
+    await ready();
+    const summary = entryPanel().querySelector("summary")!;
+    expect(summary.textContent).toContain("出走登録(0/3頭)");
+    expect(summary.textContent).toContain("なし");
+  });
+
+  it("opens and closes the entry list from its heading", async () => {
+    entryBackend(["アルファ"]);
+    render(<App />);
+    await ready();
+    fireEvent.click(entryPanel().querySelector("summary")!);
+    await waitFor(() => expect(entryPanel().open).toBe(true));
+    fireEvent.click(entryPanel().querySelector("summary")!);
+    await waitFor(() => expect(entryPanel().open).toBe(false));
+  });
+
+  it("keeps the entry list open after changing the entries and going to the next week", async () => {
+    entryBackend(["アルファ"]);
+    render(<App />);
+    await ready();
+    fireEvent.click(entryPanel().querySelector("summary")!);
+    await waitFor(() => expect(entryPanel().open).toBe(true));
+    fireEvent.click(entryBox("ベータ"));
+    await waitFor(() => expect(entryBox("ベータ").checked).toBe(true));
+    expect(entryPanel().open).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "次の週へ" }));
+    await waitFor(() => expect(vi.mocked(invoke).mock.calls.some((c) => c[0] === "next_week")).toBe(true));
+    await waitFor(() => expect(entryPanel().open).toBe(true));
   });
 
   it("stops offering more horses once the limit is reached", async () => {

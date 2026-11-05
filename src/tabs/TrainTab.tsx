@@ -2,10 +2,10 @@
 
 import { DIRT_LABEL, DIRT_WORDS, sexLabel, gainText, recordText } from "../labels";
 import { AppView } from "../view";
-import { FormBadge, HorseIcon } from "../widgets";
+import { Fold, FormBadge, HorseIcon } from "../widgets";
 
 export default function TrainTab({ app }: { app: AppView }) {
-  const { busy, dirtSessions, game, menus, raceFatigueLimit, racing, recallHorse, restHorse, sendToPasture, setAutoEntry, setAutoTraining, setMenus, toggleGear, train, trainFatigueLimit, trainers, workouts } = app;
+  const { busy, dirtSessions, foldProps, game, menus, raceFatigueLimit, racing, recallHorse, restHorse, sendToPasture, setAutoEntry, setAutoTraining, setMenus, toggleGear, train, trainFatigueLimit, trainers, workouts } = app;
   return (
       <main role="tabpanel" aria-label="育成">
         <section className="panel">
@@ -29,15 +29,17 @@ export default function TrainTab({ app }: { app: AppView }) {
             自動出走にした馬は、週の終わりに馬券なしでレースに出ます。どのレースに、どのくらいの間隔で使うかは、所属厩舎の調教師の傾向で決まります。賞金と戦績は通常のレースと同じように付きます。
           </p>
           </details>
-          <ul className="workouts" aria-label="調教メニュー">
-            {workouts.map((w) => (
-              <li key={w.workout}>
-                <strong>{w.name}</strong>
-                <span className="gains">{gainText(w, dirtSessions)}</span>
-                <span className="muted">{w.description}</span>
-              </li>
-            ))}
-          </ul>
+          <Fold {...foldProps("workouts")} className="help" summary={`調教メニューの説明(${workouts.length}種類)`}>
+            <ul className="workouts" aria-label="調教メニュー">
+              {workouts.map((w) => (
+                <li key={w.workout}>
+                  <strong>{w.name}</strong>
+                  <span className="gains">{gainText(w, dirtSessions)}</span>
+                  <span className="muted">{w.description}</span>
+                </li>
+              ))}
+            </ul>
+          </Fold>
           <table className="training">
             <thead>
               <tr>

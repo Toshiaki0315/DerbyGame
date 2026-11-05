@@ -19,6 +19,12 @@ export function useGame() {
   // the pedigree tab shows either the stable's horses or the whole pedigree database
   const [pedigreeView, setPedigreeView] = useState<"stable" | "database">("stable");
   const [autoplay, setAutoplay] = useState(false);
+  // which folding parts of the screens the player has opened or closed
+  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const foldProps = (key: string, byDefault = false) => {
+    const open = folds[key] ?? byDefault;
+    return { open, onToggle: () => setFolds((f) => ({ ...f, [key]: !open })) };
+  };
   const races = useRaces(core, autoplay);
   const { setRaceSel } = races;
   const betting = useBetting(core, races);
@@ -75,6 +81,7 @@ export function useGame() {
     ...stable,
     pedigreeView,
     setPedigreeView,
+    foldProps,
     autoplay,
     setAutoplay,
     busy,
