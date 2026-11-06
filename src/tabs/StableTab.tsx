@@ -73,7 +73,7 @@ export default function StableTab({ app }: { app: AppView }) {
           <section key={side} aria-label={side ? `${side}の厩舎` : undefined}>
           {side && <h3 className="side">{side}</h3>}
           <div className="stables">
-            {[...here].sort((a, b) => Number(inStable(b.id).length > 0) - Number(inStable(a.id).length > 0)).map((t) => {
+            {here.map((t) => {
               const horses = inStable(t.id);
               const about = (
                 <>

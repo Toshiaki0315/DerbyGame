@@ -69,6 +69,28 @@ export function Fold({ open, onToggle, summary, className, children }: { open: b
   );
 }
 
+/** A panel of a tab whose heading folds it; the notes stay on the heading while it is folded. */
+export function FoldPart({ label, title, notes = [], fold, className = "panel", children }: { label: string; title?: string; notes?: (string | false | undefined)[]; fold: { open: boolean; onToggle: () => void }; className?: string; children: ReactNode }) {
+  return (
+    <section className={className} aria-label={label}>
+      <Fold
+        {...fold}
+        className="fold-part"
+        summary={
+          <>
+            <h2>{title ?? label}</h2>
+            {notes.filter((n): n is string => !!n).map((n) => (
+              <span key={n} className="fold-note">{n}</span>
+            ))}
+          </>
+        }
+      >
+        {children}
+      </Fold>
+    </section>
+  );
+}
+
 export function FormBadge({ horse }: { horse: { name: string; condition: Condition } }) {
   return (
     <span className={`form ${horse.condition}`} aria-label={`${horse.name}の調子: ${CONDITION_LABEL[horse.condition]}`}>

@@ -4,13 +4,13 @@ import CourseMap, { MAP_HEIGHT, MAP_WIDTH } from "../CourseMap";
 import { courseShape, shapeKey } from "../courseShapes";
 import { FIT_RATING_MARK, STYLE_WORDS, TURN_LABEL, bySide, fitReasons } from "../labels";
 import { AppView } from "../view";
+import { FoldPart } from "../widgets";
 
 export default function InfoTab({ app }: { app: AppView }) {
-  const { courses, fitHorseSel, game, setFitHorse, venueFits } = app;
+  const { courses, fitHorseSel, foldProps, game, setFitHorse, venueFits } = app;
   return (
       <main role="tabpanel" aria-label="情報">
-        <section className="panel" aria-label="騎手">
-          <h2>騎手</h2>
+        <FoldPart label="騎手" fold={foldProps("jockeys")} notes={[`${(game.jockeys ?? []).length}人`]}>
           <p className="muted">
             技術が高いほど馬の力を引き出します。得意な脚質や回りでは、さらに伸びます。折り合いが高い騎手は、気性の荒い馬を掛かりにくくします。すべて架空の騎手です。
           </p>
@@ -35,9 +35,8 @@ export default function InfoTab({ app }: { app: AppView }) {
           </div>
           </section>
           ))}
-        </section>
-        <section className="panel">
-          <h2>競馬場</h2>
+        </FoldPart>
+        <FoldPart label="競馬場" fold={foldProps("courses")} notes={[`${courses.length}場`]}>
           <p className="muted">
             数値はJRA公式のコース紹介によるもので、コースが複数ある競馬場はAコースの値です。「相性」は、回り、直線の長さ、坂、洋芝が馬に合うかどうかで決まり、レースでの能力が最大で±3.5%変わります。回りの得手不得手は馬ごとに決まっていて、直線は脚質、坂と洋芝はパワーで決まります。
           </p>
@@ -113,7 +112,7 @@ export default function InfoTab({ app }: { app: AppView }) {
               );
             })}
           </div>
-        </section>
+        </FoldPart>
       </main>
   );
 }

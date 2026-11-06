@@ -4,7 +4,7 @@ import { inbreedText } from "../Bloodline";
 import { DEBUT_AGE, RETIRE_AGE, SEX_LABEL, statLabel } from "../labels";
 import { NAME_RULE, isValidHorseName } from "../naming";
 import { AppView } from "../view";
-import { Fold, HorseIcon } from "../widgets";
+import { Fold, FoldPart, HorseIcon } from "../widgets";
 
 export default function BreedingTab({ app }: { app: AppView }) {
   const { bidFor, bidResult, bids, breed, buyStud, canBreed, damSel, females, foalName, foldProps, game, inFoal, lots, market, matingCost, outlook, outlookError, outsideSires, parentLabel, pregnancies, racing, releaseStud, retireSel, roomInStable, setBids, setDam, setFoalName, setRetire, setSire, sireSel, sires, studs, studsFull, upgradeFarm } = app;
@@ -118,8 +118,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
         )}
 
         {game.farm && (
-          <section className="panel" aria-label="牧場">
-            <h2>牧場</h2>
+          <FoldPart label="牧場" fold={foldProps("farm")} notes={[`放牧地Lv${game.farm.pasture}・育成施設Lv${game.farm.nursery}`]}>
             <p className="muted">{`放牧地を広げると仔馬の脚元とスタミナが、育成施設を整えると牧場を出る1歳馬のスピードとパワーが伸びます。1段階ごとに週の預託料が${game.farm.upkeep_per_level}増えます。`}</p>
             <ul className="honours">
               {([["pasture", "放牧地", game.farm.pasture, game.farm.pasture_cost], ["nursery", "育成施設", game.farm.nursery, game.farm.nursery_cost]] as const).map(
@@ -135,12 +134,16 @@ export default function BreedingTab({ app }: { app: AppView }) {
                 )
               )}
             </ul>
-          </section>
+          </FoldPart>
         )}
 
         {game.auction_start_week !== undefined && (
-          <section className="panel" aria-label="セリ">
-            <h2>セリ(1歳馬)</h2>
+          <FoldPart
+            label="セリ"
+            title="セリ(1歳馬)"
+            fold={foldProps(`auction:${game.year}:${!!game.auction_open}`, !!game.auction_open)}
+            notes={[game.auction_open ? `開催中${lots.length}頭` : `第${game.auction_start_week}週〜第${game.auction_end_week}週`]}
+          >
             <p className="muted">
               {`セリは7月(第${game.auction_start_week}週〜第${game.auction_end_week}週)に開かれます。${
                 game.auction_open ? "今は開催中です。" : `今は第${game.week}週です。`
@@ -198,11 +201,16 @@ export default function BreedingTab({ app }: { app: AppView }) {
                 );
               })}
             </ul>
-          </section>
+          </FoldPart>
         )}
 
-        <section className="panel studbook" aria-labelledby="studbook-title">
-          <h2 id="studbook-title" aria-label="繁殖馬">{`繁殖馬 (${studs.length}/${game.max_studs ?? 0})`}</h2>
+        <FoldPart
+          label="繁殖馬"
+          title={`繁殖馬 (${studs.length}/${game.max_studs ?? 0})`}
+          className="panel studbook"
+          fold={foldProps("studbook")}
+          notes={[`種牡馬${studs.filter((s) => s.sex === "male").length}・繁殖牝馬${studs.filter((s) => s.sex === "female").length}`]}
+        >
           <p className="muted">{`引退させた馬や購入した馬を繁殖馬として配合に使えます。${RETIRE_AGE}歳になる年明けに自動で引退します。`}</p>
           {studs.length === 0 ? (
             <p className="muted">繁殖馬はいません。</p>
@@ -252,10 +260,9 @@ export default function BreedingTab({ app }: { app: AppView }) {
               })}
             </div>
           )}
-        </section>
+        </FoldPart>
 
-        <section className="panel market" aria-labelledby="market-title">
-          <h2 id="market-title" aria-label="繁殖馬の購入">繁殖馬の購入</h2>
+        <FoldPart label="繁殖馬の購入" className="panel market" fold={foldProps("market")} notes={[market.length > 0 && `販売中${market.length}頭`]}>
           <p className="muted">血統データベースの馬を繁殖馬として買えます。販売される馬は年ごとに入れ替わります。</p>
           {market.length === 0 ? (
             <p className="muted">いま販売中の馬はいません。</p>
@@ -296,7 +303,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
               })}
             </div>
           )}
-        </section>
+        </FoldPart>
       </main>
   );
 }

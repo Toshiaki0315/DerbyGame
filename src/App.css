@@ -90,7 +90,7 @@ td.train button { margin-left: 4px; padding: 3px 6px; font-size: 11px; }
 }
 .tabs button:hover { background: #26603f; }
 .tabs button.active { background: #f7f5ee; color: #14532d; }
-.pedigrees { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.pedigrees { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; }
 .pedigree h2 { display: flex; align-items: center; }
 .pedigree dl { margin: 0; font-size: 14px; }
 .pedigree dl > div { padding: 4px 0; border-top: 1px solid #e4dfd0; }
@@ -157,6 +157,8 @@ td.train button { margin-left: 4px; padding: 3px 6px; font-size: 11px; }
 .fold-part > summary { cursor: pointer; }
 .fold-part > summary h2 { display: inline; margin: 0; }
 .fold-note { margin-left: 8px; font-size: 12px; color: #6b665a; }
+.pedigree .fold-part > summary h2 { display: inline-flex; vertical-align: middle; }
+.pedigree .fold-note { display: block; margin: 2px 0 0 18px; }
 .stable summary { cursor: pointer; }
 .stable summary h3 { display: inline; }
 .stable summary .count { margin-left: 8px; }

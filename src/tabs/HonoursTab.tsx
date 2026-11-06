@@ -3,14 +3,21 @@
 import { GRADE_LABEL } from "../Calendar";
 import { SEX_LABEL, starRecord } from "../labels";
 import { AppView } from "../view";
+import { FoldPart } from "../widgets";
 
 export default function HonoursTab({ app }: { app: AppView }) {
-  const { game, trainers } = app;
+  const { foldProps, game, trainers } = app;
+  const goals = game.goals ?? [];
+  const lines = game.sire_lines ?? [];
+  // this year's leader of each table, kept on the heading while the tables are folded
+  const leaders = ([["騎手", game.leading?.jockeys], ["調教師", game.leading?.trainers], ["種牡馬", game.leading?.sires]] as const)
+    .filter(([, rows]) => (rows ?? []).length > 0)
+    .map(([title, rows]) => `${title} ${rows![0].name}`)
+    .join("・");
   return (
       <main role="tabpanel" aria-label="実績">
         {game.owner_rank !== undefined && (
-          <section className="panel" aria-label="目標">
-            <h2>目標</h2>
+          <FoldPart label="目標" fold={foldProps("goals", true)} notes={[`${goals.filter((x) => x.done).length}/${goals.length} 達成`]}>
             <p><strong>{`馬主の称号: ${game.owner_rank}`}</strong></p>
             <p className="muted">{`目標 ${(game.goals ?? []).filter((x) => x.done).length}/${(game.goals ?? []).length} 達成`}</p>
             <ul className="honours">
@@ -21,11 +28,10 @@ export default function HonoursTab({ app }: { app: AppView }) {
                 </li>
               ))}
             </ul>
-          </section>
+          </FoldPart>
         )}
         {(game.sire_lines ?? []).length > 0 && (
-          <section className="panel" aria-label="系統">
-            <h2>系統</h2>
+          <FoldPart label="系統" fold={foldProps("sire-lines")} notes={[`${lines.length}系統(確立${lines.filter((l) => l.established).length})`]}>
             <p className="muted">{`自分で使った種牡馬の産駒が${game.line_foals}頭以上、G1を${game.line_g1_wins}勝以上すると、その系統が確立します。確立した系統の種牡馬とその息子は配合評価が上がります。`}</p>
             <ul className="honours">
               {(game.sire_lines ?? []).map((l) => (
@@ -35,10 +41,9 @@ export default function HonoursTab({ app }: { app: AppView }) {
                 </li>
               ))}
             </ul>
-          </section>
+          </FoldPart>
         )}
-        <section className="panel" aria-label="受賞">
-          <h2>受賞</h2>
+        <FoldPart label="受賞" fold={foldProps("awards")} notes={[`${(game.awards ?? []).length}件`]}>
           {(game.awards ?? []).length === 0 ? (
             <p className="muted">まだありません。</p>
           ) : (
@@ -48,9 +53,8 @@ export default function HonoursTab({ app }: { app: AppView }) {
               ))}
             </ul>
           )}
-        </section>
-        <section className="panel" aria-label="殿堂">
-          <h2>殿堂</h2>
+        </FoldPart>
+        <FoldPart label="殿堂" fold={foldProps("hall")} notes={[`${(game.hall ?? []).length}頭`]}>
           <p className="muted">引退時にG1を5勝以上、三冠、または獲得賞金15000以上の馬が殿堂入りします。</p>
           {(game.hall ?? []).length === 0 ? (
             <p className="muted">まだいません。</p>
@@ -64,9 +68,8 @@ export default function HonoursTab({ app }: { app: AppView }) {
               ))}
             </ul>
           )}
-        </section>
-        <section className="panel" aria-label="現役馬の実績">
-          <h2>現役馬の実績</h2>
+        </FoldPart>
+        <FoldPart label="現役馬の実績" fold={foldProps("careers")} notes={[`${game.field.length}頭`]}>
           <ul className="honours">
             {game.field.map((h) => (
               <li key={h.name}>
@@ -83,9 +86,8 @@ export default function HonoursTab({ app }: { app: AppView }) {
               </li>
             ))}
           </ul>
-        </section>
-        <section className="panel" aria-label="ライバル">
-          <h2>ライバル</h2>
+        </FoldPart>
+        <FoldPart label="ライバル" fold={foldProps("rivals")} notes={[`${(game.stars ?? []).length}頭`]}>
           <p className="muted">重賞を走り続ける相手です。出走表に「ライバル」の印が付きます。</p>
           <table className="training">
             <thead>
@@ -105,9 +107,8 @@ export default function HonoursTab({ app }: { app: AppView }) {
                 ))}
             </tbody>
           </table>
-        </section>
-        <section className="panel leading" aria-label="リーディング">
-          <h2>リーディング</h2>
+        </FoldPart>
+        <FoldPart label="リーディング" className="panel leading" fold={foldProps("leading")} notes={[leaders]}>
           <p className="muted">今年ここまでの勝利数です。カッコ内は自分の馬での勝利数です。</p>
           <div className="leading-tables">
             {([["騎手", game.leading?.jockeys], ["調教師", game.leading?.trainers], ["種牡馬", game.leading?.sires]] as const).map(([title, rows]) => (
@@ -134,9 +135,8 @@ export default function HonoursTab({ app }: { app: AppView }) {
               ))}
             </ul>
           )}
-        </section>
-        <section className="panel" aria-label="調教師の成績">
-          <h2>調教師の成績</h2>
+        </FoldPart>
+        <FoldPart label="調教師の成績" fold={foldProps("trainer-records")} notes={[`${trainers.length}人`]}>
           <table className="training">
             <thead>
               <tr><th align="left">調教師</th><th>所属</th><th>出走</th><th>勝利</th><th>勝率</th><th>G1</th><th>獲得賞金</th></tr>
@@ -158,7 +158,7 @@ export default function HonoursTab({ app }: { app: AppView }) {
               })}
             </tbody>
           </table>
-        </section>
+        </FoldPart>
       </main>
   );
 }

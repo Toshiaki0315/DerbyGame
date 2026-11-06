@@ -737,11 +737,11 @@ describe("App", () => {
         expect(within(fold).getByText("預けている馬はいません。")).toBeTruthy();
       });
 
-      it("put the ones with my horses first, so that the folded ones sit together", async () => {
+      it("keep the trainers' own order, whether or not they have my horses", async () => {
         const later = { ...staffed, field: state.field.map((h: object) => ({ ...h, trainer: 1 })) };
         await start(later, "厩舎");
         const names = screen.getAllByRole("region", { name: /厩舎$/ }).map((r) => r.getAttribute("aria-label"));
-        expect(names).toEqual(["獅子堂 健厩舎", "鬼塚 剛志厩舎"]);
+        expect(names).toEqual(["鬼塚 剛志厩舎", "獅子堂 健厩舎"]);
       });
 
       it("never fold one with my horses", async () => {
@@ -778,6 +778,165 @@ describe("App", () => {
         await toggle(matingFold);
         leaveAndComeBack("繁殖");
         expect(matingFold().open).toBe(true);
+      });
+    });
+
+    // the fold that a part of a tab sits in, found by the part's name
+    const partFold = (name: string) => screen.getByRole("region", { name }).querySelector("details") as HTMLDetailsElement;
+    const partSummary = (name: string) => partFold(name).querySelector("summary")!.textContent;
+
+    describe("the other parts of the breeding tab", () => {
+      const farm = { pasture: 1, nursery: 0, max_level: 3, pasture_cost: 300, nursery_cost: 400, upkeep_per_level: 5 };
+      const offer = (blood_id: number, name: string, sex: string) => ({
+        blood_id, name, sex, speed: 60, stamina: 60, power: 60, temper: 50, price: 800,
+        blood: { coat_color: "鹿毛", lineage: "テスト系", running_style: "先行", growth_type: "普通" },
+      });
+      const lot = { lot: 1, sire: "タイセイオー", dam: "ロウバイ", sex: "female", estimate: "A", start_price: 400, closed: false };
+      const sale = { auction_start_week: 27, auction_end_week: 30, week: 28 };
+
+      it("fold the farm, keeping the levels on the fold", async () => {
+        await start({ farm }, "繁殖");
+        expect(partFold("牧場").open).toBe(false);
+        expect(partSummary("牧場")).toContain("放牧地Lv1・育成施設Lv0");
+        expect(within(partFold("牧場")).getByRole("button", { name: "放牧地を拡張 (300)" })).toBeTruthy();
+      });
+
+      it("fold the stud book, keeping the count of each sex on the fold", async () => {
+        await start({}, "繁殖");
+        expect(partFold("繁殖馬").open).toBe(false);
+        expect(partSummary("繁殖馬")).toContain("種牡馬1・繁殖牝馬1");
+        expect(within(partFold("繁殖馬")).getByText("ロウバイ")).toBeTruthy();
+      });
+
+      it("fold the studs for sale, saying how many there are", async () => {
+        await start({}, "繁殖", { get_stud_market: [offer(1, "ウリモノ", "male"), offer(2, "ウリメス", "female")] });
+        await screen.findByText("ウリモノ");
+        expect(partFold("繁殖馬の購入").open).toBe(false);
+        expect(partSummary("繁殖馬の購入")).toContain("販売中2頭");
+      });
+
+      it("fold the sale while it is not being held", async () => {
+        await start({ ...sale, auction_open: false }, "繁殖", { get_auction: [] });
+        expect(partFold("セリ").open).toBe(false);
+        expect(partSummary("セリ")).not.toContain("開催中");
+      });
+
+      it("open the sale by itself while it is held, and keep it closed once closed", async () => {
+        await start({ ...sale, auction_open: true }, "繁殖", { get_auction: [lot] });
+        await screen.findByLabelText("上場1の上限額");
+        expect(partFold("セリ").open).toBe(true);
+        expect(partSummary("セリ")).toContain("開催中");
+        await toggle(() => partFold("セリ"));
+        leaveAndComeBack("繁殖");
+        expect(partFold("セリ").open).toBe(false);
+      });
+
+      it("stay open after leaving the tab and coming back", async () => {
+        await start({}, "繁殖");
+        await toggle(() => partFold("繁殖馬"));
+        leaveAndComeBack("繁殖");
+        expect(partFold("繁殖馬").open).toBe(true);
+      });
+    });
+
+    describe("the lists on the information tab", () => {
+      const jockey = (id: number, name: string) => ({ id, name, skill: 80, style: "closer", turn: "left", tact: 50, fee: 20, description: "名手です。" });
+      const track = { lap: "1m", straight: "1m", elevation: "1m" };
+      const course = (venue: string, name: string) => ({ venue, name, place: "千葉県", turn: "right", grass: "野芝", turf: track, dirt: track, features: "", suits: "", maps: [] });
+      const info = { get_courses: [course("nakayama", "中山"), course("tokyo", "東京")], get_course_fits: [] };
+
+      it("fold the jockeys, saying how many there are", async () => {
+        await start({ jockeys: [jockey(0, "神崎 颯"), jockey(1, "風間 翼")] }, "情報", info);
+        expect(partFold("騎手").open).toBe(false);
+        expect(partSummary("騎手")).toContain("2人");
+        expect(within(partFold("騎手")).getByText("神崎 颯")).toBeTruthy();
+      });
+
+      it("fold the racecourses with the horse to match them against inside", async () => {
+        await start({}, "情報", info);
+        await screen.findByText("東京競馬場");
+        expect(partFold("競馬場").open).toBe(false);
+        expect(partSummary("競馬場")).toContain("2場");
+        expect(partFold("競馬場").contains(screen.getByLabelText("相性を見る馬"))).toBe(true);
+      });
+
+      it("stay open after leaving the tab and coming back", async () => {
+        await start({}, "情報", info);
+        await screen.findByText("東京競馬場");
+        await toggle(() => partFold("競馬場"));
+        leaveAndComeBack("情報");
+        expect(partFold("競馬場").open).toBe(true);
+      });
+    });
+
+    describe("the parts of the honours tab", () => {
+      const honours = {
+        owner_rank: "新人馬主",
+        goals: [{ name: "初勝利", description: "1勝する", done: true }, { name: "重賞制覇", description: "重賞を勝つ", done: false }],
+        awards: [
+          { year: 1, title: "年度代表馬", horse: "ライバルオー", mine: false },
+          { year: 2, title: "三冠", horse: "Fast", mine: true },
+        ],
+        hall: [{ name: "レジェンド", year: 3, wins: 9, g1_wins: 4, earnings: 8000, titles: ["三冠"] }],
+        stars: [],
+        trainers: [{ id: 0, name: "鬼塚 剛志", training: "スパルタ", distance: "短距離", rotation: "連闘", aim: "賞金", description: "" }],
+        leading: {
+          jockeys: [{ name: "神崎 颯", wins: 30, own_wins: 0 }],
+          trainers: [{ name: "鬼塚 剛志", wins: 20, own_wins: 2 }],
+          sires: [{ name: "タイセイオー", wins: 15, own_wins: 0 }],
+        },
+      };
+
+      it("leave the goals open at first", async () => {
+        await start(honours, "実績");
+        expect(partFold("目標").open).toBe(true);
+        expect(partSummary("目標")).toContain("1/2 達成");
+      });
+
+      it("fold the rest, keeping how many each has on the fold", async () => {
+        await start(honours, "実績");
+        for (const [part, note] of [["受賞", "2件"], ["殿堂", "1頭"], ["現役馬の実績", "2頭"], ["ライバル", "0頭"], ["調教師の成績", "1人"]]) {
+          expect(partFold(part).open).toBe(false);
+          expect(partSummary(part)).toContain(note);
+        }
+        expect(within(partFold("殿堂")).getByText("レジェンド")).toBeTruthy();
+      });
+
+      it("keep this year's leaders on the folded leading tables", async () => {
+        await start(honours, "実績");
+        expect(partFold("リーディング").open).toBe(false);
+        expect(partSummary("リーディング")).toContain("騎手 神崎 颯・調教師 鬼塚 剛志・種牡馬 タイセイオー");
+      });
+
+      it("stay open after leaving the tab and coming back", async () => {
+        await start(honours, "実績");
+        await toggle(() => partFold("受賞"));
+        leaveAndComeBack("実績");
+        expect(partFold("受賞").open).toBe(true);
+      });
+    });
+
+    describe("the cards on the pedigree tab", () => {
+      const card = (name: string) => screen.getByRole("region", { name: `${name}の血統` }).querySelector("details") as HTMLDetailsElement;
+      const cardSummary = (name: string) => card(name).querySelector("summary")!.textContent;
+
+      it("are folded, keeping the name, the sex and the parents on the fold", async () => {
+        await start({}, "血統");
+        expect(card("Fast").open).toBe(false);
+        expect(cardSummary("Fast")).toContain("Fast");
+        expect(cardSummary("Fast")).toContain("牡");
+        expect(cardSummary("Fast")).toContain("父 ミツルギオー・母 ハルカゼノマイ");
+        expect(cardSummary("Slow")).toContain("血統不明");
+        expect(within(card("Fast")).getByText("父: ミツルギオー")).toBeTruthy();
+        expect(within(card("Fast")).getByRole("button", { name: "Fastを引退させる" })).toBeTruthy();
+      });
+
+      it("stay open after leaving the tab and coming back", async () => {
+        await start({}, "血統");
+        await toggle(() => card("Fast"));
+        leaveAndComeBack("血統");
+        expect(card("Fast").open).toBe(true);
+        expect(card("Slow").open).toBe(false);
       });
     });
   });

@@ -3,10 +3,10 @@
 import Bloodline, { inbreedText } from "../Bloodline";
 import { DEBUT_AGE, SEX_LABEL, isYoung, mutationText, recordText } from "../labels";
 import { AppView } from "../view";
-import { HorseIcon } from "../widgets";
+import { Fold, HorseIcon } from "../widgets";
 
 export default function PedigreeTab({ app }: { app: AppView }) {
-  const { game, pedigreeView, racing, retireHorse, setPedigreeView, studsFull } = app;
+  const { foldProps, game, pedigreeView, racing, retireHorse, setPedigreeView, studsFull } = app;
   return (
       <>
       <div className="subtabs">
@@ -26,15 +26,26 @@ export default function PedigreeTab({ app }: { app: AppView }) {
         <p className="muted">配合と繁殖馬の管理は「繁殖」タブで行います。</p>
         <div className="pedigrees">
         {game.field.map((h, i) => (
-          <section key={h.name} className="panel pedigree">
-            <h2>
-              <HorseIcon name={h.name} coat={h.blood?.coat_color} />
-              {h.name}
-              <span className={`sex ${h.sex}`} aria-label={`${h.name}の性別: ${SEX_LABEL[h.sex]}`}>
-                {SEX_LABEL[h.sex]}
-              </span>
-            </h2>
-            {h.pedigree ? (
+          <section key={h.name} className="panel pedigree" aria-label={`${h.name}の血統`}>
+            <Fold
+              {...foldProps(`pedigree:${h.name}`)}
+              className="fold-part"
+              summary={
+                <>
+                  <h2>
+                    <HorseIcon name={h.name} coat={h.blood?.coat_color} />
+                    {h.name}
+                    <span className={`sex ${h.sex}`} aria-label={`${h.name}の性別: ${SEX_LABEL[h.sex]}`}>
+                      {SEX_LABEL[h.sex]}
+                    </span>
+                  </h2>
+                  <span className="fold-note">
+                    {h.pedigree ? `父 ${h.pedigree.sire}・母 ${h.pedigree.dam}` : "血統不明"}
+                  </span>
+                </>
+              }
+            >
+            {h.pedigree && (
               <dl>
                 <div className="gen1"><dt>父</dt><dd>{`父: ${h.pedigree.sire}`}</dd></div>
                 <div className="gen1"><dt>母</dt><dd>{`母: ${h.pedigree.dam}`}</dd></div>
@@ -43,8 +54,6 @@ export default function PedigreeTab({ app }: { app: AppView }) {
                 <div className="gen2"><dd>{`母父: ${h.pedigree.dam_sire}`}</dd></div>
                 <div className="gen2"><dd>{`母母: ${h.pedigree.dam_dam}`}</dd></div>
               </dl>
-            ) : (
-              <p className="muted">血統不明</p>
             )}
             {h.blood && (
               <ul className="traits">
@@ -79,6 +88,7 @@ export default function PedigreeTab({ app }: { app: AppView }) {
             >
               {h.gelded ? "引退" : "引退(繁殖入り)"}
             </button>
+            </Fold>
           </section>
         ))}
         </div>
