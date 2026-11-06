@@ -724,37 +724,44 @@ describe("App", () => {
         trainers: [trainer(0, "鬼塚 剛志"), trainer(1, "獅子堂 健")],
         field: state.field.map((h: object) => ({ ...h, trainer: 0 })),
       };
-      const stableFold = (name: string) => screen.getByRole("region", { name: `${name}厩舎` }).querySelector("details") as HTMLDetailsElement;
+      const emptyFold = () => screen.getByText(/^馬のいない厩舎/).closest("details") as HTMLDetailsElement;
+      const stableNames = () => screen.getAllByRole("region", { name: /厩舎$/ }).map((r) => r.getAttribute("aria-label"));
 
-      it("fold one without horses, keeping its name, room and leaning on the fold", async () => {
+      it("gather the ones without horses into one fold, saying how many there are", async () => {
         await start(staffed, "厩舎");
-        const fold = stableFold("獅子堂 健");
-        expect(fold.open).toBe(false);
-        const summary = fold.querySelector("summary")!.textContent;
-        expect(summary).toContain("獅子堂 健厩舎");
-        expect(summary).toContain("0/10頭");
-        expect(summary).toContain("スパルタ・短距離");
-        expect(within(fold).getByText("預けている馬はいません。")).toBeTruthy();
+        expect(emptyFold().open).toBe(false);
+        expect(emptyFold().querySelector("summary")!.textContent).toBe("馬のいない厩舎(1軒)");
+        const inside = within(emptyFold()).getByRole("region", { name: "獅子堂 健厩舎" });
+        expect(within(inside).getByText("0/10頭")).toBeTruthy();
+        expect(within(inside).getByText("調教: スパルタ")).toBeTruthy();
+        expect(within(inside).getByText("叩きます。")).toBeTruthy();
       });
 
-      it("keep the trainers' own order, whether or not they have my horses", async () => {
-        const later = { ...staffed, field: state.field.map((h: object) => ({ ...h, trainer: 1 })) };
-        await start(later, "厩舎");
-        const names = screen.getAllByRole("region", { name: /厩舎$/ }).map((r) => r.getAttribute("aria-label"));
-        expect(names).toEqual(["鬼塚 剛志厩舎", "獅子堂 健厩舎"]);
+      it("put the fold after the ones with my horses, which keep the trainers' own order", async () => {
+        const three = {
+          trainers: [trainer(0, "鬼塚 剛志"), trainer(1, "獅子堂 健"), trainer(2, "森田 穏")],
+          field: state.field.map((h: object, i: number) => ({ ...h, trainer: i === 0 ? 2 : 0 })),
+        };
+        await start(three, "厩舎");
+        expect(stableNames()).toEqual(["鬼塚 剛志厩舎", "森田 穏厩舎", "獅子堂 健厩舎"]);
       });
 
       it("never fold one with my horses", async () => {
         await start(staffed, "厩舎");
-        expect(stableFold("鬼塚 剛志")).toBeNull();
+        expect(emptyFold().contains(screen.getByRole("region", { name: "鬼塚 剛志厩舎" }))).toBe(false);
         expect(screen.getByLabelText("Fastの厩舎")).toBeTruthy();
+      });
+
+      it("leave out the fold when every stable has my horses", async () => {
+        await start({ ...staffed, trainers: [trainer(0, "鬼塚 剛志")] }, "厩舎");
+        expect(screen.queryByText(/^馬のいない厩舎/)).toBeNull();
       });
 
       it("stay open after leaving the tab and coming back", async () => {
         await start(staffed, "厩舎");
-        await toggle(() => stableFold("獅子堂 健"));
+        await toggle(emptyFold);
         leaveAndComeBack("厩舎");
-        expect(stableFold("獅子堂 健").open).toBe(true);
+        expect(emptyFold().open).toBe(true);
       });
     });
 
@@ -2977,7 +2984,6 @@ describe("App", () => {
       expect(s0.getByText("目標: 堅実に賞金")).toBeTruthy();
       expect(s0.getByText("叩いて強くします。")).toBeTruthy();
       expect(within(stable("森田 穏")).getByText("0/2頭")).toBeTruthy();
-      expect(within(stable("森田 穏")).getByText("預けている馬はいません。")).toBeTruthy();
     });
 
     it("lists the horses in the stable they are in", async () => {

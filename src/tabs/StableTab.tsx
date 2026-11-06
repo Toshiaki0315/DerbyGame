@@ -69,11 +69,10 @@ export default function StableTab({ app }: { app: AppView }) {
               </Fold>
             </section>
           )}
-          {bySide(trainers).map(([side, here]) => (
-          <section key={side} aria-label={side ? `${side}の厩舎` : undefined}>
-          {side && <h3 className="side">{side}</h3>}
-          <div className="stables">
-            {here.map((t) => {
+          {bySide(trainers).map(([side, here]) => {
+          // the stables with my horses in the trainers' own order, then the empty ones gathered in one fold
+          const empty = here.filter((t) => inStable(t.id).length === 0);
+          const card = (t: (typeof trainers)[number]) => {
               const horses = inStable(t.id);
               const about = (
                 <>
@@ -86,30 +85,14 @@ export default function StableTab({ app }: { app: AppView }) {
                   <p className="muted">{t.description}</p>
                 </>
               );
-              const count = <span className="count">{`${horses.length}/${stableCapacity}頭`}</span>;
               return (
                 <section key={t.id} className="stable" aria-label={`${t.name}厩舎`}>
-                  {horses.length === 0 ? (
-                    <Fold
-                      {...foldProps(`stable:${t.id}`)}
-                      summary={
-                        <>
-                          <h3>{`${t.name}厩舎`}</h3>
-                          <span className="fold-note">{`${t.training}・${t.distance}`}</span>
-                          {count}
-                        </>
-                      }
-                    >
-                      {about}
-                      <p className="muted">預けている馬はいません。</p>
-                    </Fold>
-                  ) : (
-                    <>
                     <header>
                       <h3>{`${t.name}厩舎`}</h3>
-                      {count}
+                      <span className="count">{`${horses.length}/${stableCapacity}頭`}</span>
                     </header>
                     {about}
+                    {horses.length > 0 && (
                     <ul className="stable-horses">
                       {horses.map((h) => (
                         <li key={h.name}>
@@ -233,14 +216,22 @@ export default function StableTab({ app }: { app: AppView }) {
                         </li>
                       ))}
                     </ul>
-                    </>
-                  )}
+                    )}
                 </section>
               );
-            })}
-          </div>
+          };
+          return (
+          <section key={side} aria-label={side ? `${side}の厩舎` : undefined}>
+          {side && <h3 className="side">{side}</h3>}
+          <div className="stables">{here.filter((t) => inStable(t.id).length > 0).map(card)}</div>
+          {empty.length > 0 && (
+            <Fold {...foldProps(`empty-stables:${side}`)} className="empty-stables" summary={`馬のいない厩舎(${empty.length}軒)`}>
+              <div className="stables">{empty.map(card)}</div>
+            </Fold>
+          )}
           </section>
-          ))}
+          );
+          })}
         </section>
       </main>
   );
