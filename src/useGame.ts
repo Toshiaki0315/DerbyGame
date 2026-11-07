@@ -15,7 +15,7 @@ import { useState } from "react";
 
 export function useGame() {
   const core = useCore();
-  const { load, setGame, setError, setNotice, attempt } = core;
+  const { load, setGame, setError, setNotice, attemptOnce, pending } = core;
   // the pedigree tab shows either the stable's horses or the whole pedigree database
   const [pedigreeView, setPedigreeView] = useState<"stable" | "database">("stable");
   const [autoplay, setAutoplay] = useState(false);
@@ -34,10 +34,10 @@ export function useGame() {
   const breeding = useBreeding(core, show);
   const courses = useCourses(core);
   const stable = useStable(core, races);
-  const busy = racing || autoplay;
+  const busy = racing || autoplay || pending;
 
   const nextWeek = () =>
-    attempt(async () => {
+    attemptOnce(async () => {
       const s = await invoke<GameState>("next_week");
       load(s);
       setRaceSel(FREE_RACE);
@@ -46,13 +46,13 @@ export function useGame() {
     }, true);
 
   const save = () =>
-    attempt(async () => {
+    attemptOnce(async () => {
       await invoke("save_game");
       setNotice("セーブしました。");
     }, true);
 
   const loadSaved = () =>
-    attempt(async () => {
+    attemptOnce(async () => {
       const s = await invoke<GameState>("load_game");
       setRaceSel(FREE_RACE);
       setOutcome(null);

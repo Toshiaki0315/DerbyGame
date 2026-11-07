@@ -634,6 +634,65 @@ describe("App", () => {
     });
   });
 
+  describe("while a request to the game is on its way", () => {
+    // a reply that is held back until the test lets it go
+    const held = () => {
+      let release!: (v: unknown) => void;
+      let refuse!: (e: unknown) => void;
+      const promise = new Promise((ok, no) => {
+        release = ok;
+        refuse = no;
+      });
+      return { promise, release, refuse };
+    };
+    const calls = (cmd: string) => vi.mocked(invoke).mock.calls.filter((c) => c[0] === cmd).length;
+    const watched = { results: [{ rank: 1, name: "Fast", finish_time: 60 }], frames: [[600, 300], [2400, 2000]], distance: 2400, commentary: [], won: false, payout: 0, money: 1000 };
+
+    it("runs the race once however often the start button is pressed", async () => {
+      const reply = held();
+      mockBackend(undefined, undefined, undefined, { watch_race: () => reply.promise });
+      render(<App />);
+      await ready();
+      const start = () => screen.getByRole("button", { name: "レース開始" }) as HTMLButtonElement;
+      fireEvent.click(start());
+      fireEvent.click(start());
+      fireEvent.click(start());
+      await waitFor(() => expect(start().disabled).toBe(true));
+      expect(calls("watch_race")).toBe(1);
+      await act(async () => reply.release(watched));
+      await screen.findByText("スキップ");
+      expect(calls("watch_race")).toBe(1);
+    });
+
+    it("moves on one week however often the next week button is pressed", async () => {
+      const reply = held();
+      mockBackend(undefined, undefined, undefined, { next_week: () => reply.promise });
+      render(<App />);
+      await ready();
+      const next = () => screen.getByRole("button", { name: "次の週へ" }) as HTMLButtonElement;
+      fireEvent.click(next());
+      fireEvent.click(next());
+      await waitFor(() => expect(next().disabled).toBe(true));
+      expect(calls("next_week")).toBe(1);
+      await act(async () => reply.release({ ...state, week: 2 }));
+      await waitFor(() => expect(next().disabled).toBe(false));
+      expect(calls("next_week")).toBe(1);
+    });
+
+    it("lets the button be pressed again once the game has refused", async () => {
+      const reply = held();
+      mockBackend(undefined, undefined, undefined, { next_week: () => reply.promise });
+      render(<App />);
+      await ready();
+      const next = () => screen.getByRole("button", { name: "次の週へ" }) as HTMLButtonElement;
+      fireEvent.click(next());
+      await waitFor(() => expect(next().disabled).toBe(true));
+      await act(async () => reply.refuse("週を進められません"));
+      await waitFor(() => expect(next().disabled).toBe(false));
+      expect(screen.getByText("週を進められません")).toBeTruthy();
+    });
+  });
+
   describe("folding the long parts of the tabs", () => {
     const start = async (over: object, tab: string, more: object = {}) => {
       mockBackend(undefined, undefined, undefined, { get_game_state: { ...state, ...over }, ...more });

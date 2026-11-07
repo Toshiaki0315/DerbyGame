@@ -10,7 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 export function useRaceShow(core: Core, races: Races, betting: Betting) {
-  const { setGame, load, setNotice, attempt } = core;
+  const { setGame, load, setNotice, attemptOnce } = core;
   const { card, chosenRace, setRaceSel } = races;
   const { slip, setSlip, slipTotal } = betting;
   const [outcome, setOutcome] = useState<(RoundOutcome & { stake: number; horse: string; kind: BetKind; ticketCount: number; mixed: boolean }) | null>(null);
@@ -85,7 +85,7 @@ export function useRaceShow(core: Core, races: Races, betting: Betting) {
   };
 
   const runRace = () =>
-    attempt(async () => {
+    attemptOnce(async () => {
       const seed = Math.floor(Math.random() * 2 ** 32);
       const race = chosenRace ? raceKey(chosenRace) : null;
       if (slip.length > 0) {
