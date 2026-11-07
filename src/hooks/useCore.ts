@@ -18,24 +18,18 @@ export function useCore() {
     setGame(s);
   };
 
-  // does something the game may refuse, showing why if it does
+  // does something the game may refuse, showing why if it does; one at a time, so a press
+  // while another request is on its way is ignored (and the buttons are off meanwhile)
   const attempt = async (work: () => Promise<void>, clearNotice = false) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
     setError("");
     if (clearNotice) setNotice("");
     try {
       await work();
     } catch (e) {
       setError(String(e));
-    }
-  };
-
-  // like attempt, but only one at a time: presses while one is on its way are ignored
-  const attemptOnce = async (work: () => Promise<void>, clearNotice = false) => {
-    if (pendingRef.current) return;
-    pendingRef.current = true;
-    setPending(true);
-    try {
-      await attempt(work, clearNotice);
     } finally {
       pendingRef.current = false;
       setPending(false);
@@ -57,7 +51,6 @@ export function useCore() {
     setNotice,
     load,
     attempt,
-    attemptOnce,
     pending,
   };
 }

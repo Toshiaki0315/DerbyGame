@@ -6,7 +6,7 @@ import { AppView } from "../view";
 import { Fold, HorseIcon } from "../widgets";
 
 export default function PedigreeTab({ app }: { app: AppView }) {
-  const { foldProps, game, pedigreeView, racing, retireHorse, setPedigreeView, studsFull } = app;
+  const { busy, foldProps, game, pedigreeView, retireHorse, setPedigreeView, studsFull } = app;
   return (
       <>
       <div className="subtabs">
@@ -74,7 +74,7 @@ export default function PedigreeTab({ app }: { app: AppView }) {
             <button
               className="retire"
               aria-label={`${h.name}を引退させる`}
-              disabled={racing || game.field.length <= 1 || (studsFull && !h.gelded) || isYoung(h)}
+              disabled={busy || game.field.length <= 1 || (studsFull && !h.gelded) || isYoung(h)}
               title={
                 isYoung(h)
                   ? `${DEBUT_AGE}歳になるまで引退できません`

@@ -97,6 +97,37 @@ fn file_save_and_load() {
 }
 
 #[test]
+fn a_save_that_cannot_be_finished_leaves_the_last_one_as_it_was() {
+    let dir = std::env::temp_dir().join(format!("derby_half_save_{}", std::process::id()));
+    let path = dir.join("save.json");
+    let mut g = Game::new();
+    g.money = 777;
+    g.save_to(&path).unwrap();
+    // the file the new save is first written to cannot be made
+    let scratch = dir.join("save.json.tmp");
+    std::fs::create_dir_all(scratch.join("blocked")).unwrap();
+    g.money = 888;
+    assert!(g.save_to(&path).is_err());
+    assert_eq!(Game::load_from(&path).unwrap().money, 777);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_finished_save_leaves_no_scratch_file_behind() {
+    let dir = std::env::temp_dir().join(format!("derby_clean_save_{}", std::process::id()));
+    let path = dir.join("save.json");
+    let g = Game::new();
+    g.save_to(&path).unwrap();
+    g.save_to(&path).unwrap();
+    let names: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .collect();
+    assert_eq!(names, vec!["save.json".to_string()]);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn saving_where_it_cannot_be_written_says_why() {
     let dir = std::env::temp_dir().join(format!("derby_unwritable_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -199,15 +230,24 @@ fn every_horse_has_a_condition_and_seed_decides_it() {
 }
 
 #[test]
-fn conditions_are_rerolled_after_each_round() {
+fn conditions_are_rerolled_each_week() {
     let mut g = Game::with_seed(5);
-    let name = g.field[0].name.clone();
     let mut seen = vec![g.all(|h| h.condition)];
-    for s in 0..10 {
-        g.play_round(&name, 1, s).unwrap();
+    for _ in 0..10 {
+        g.advance_week();
         seen.push(g.all(|h| h.condition));
     }
     assert!(seen.windows(2).any(|w| w[0] != w[1]));
+}
+
+#[test]
+fn running_the_free_race_again_and_again_does_not_reroll_the_conditions() {
+    let mut g = Game::with_seed(5);
+    let before = g.all(|h| h.condition);
+    for s in 0..10 {
+        g.watch_race(None, s).unwrap();
+        assert_eq!(g.all(|h| h.condition), before, "after free race {s}");
+    }
 }
 
 #[test]

@@ -5,7 +5,7 @@ import { AppView } from "../view";
 import { Fold, FormBadge, HorseIcon } from "../widgets";
 
 export default function TrainTab({ app }: { app: AppView }) {
-  const { busy, dirtSessions, foldProps, game, menus, raceFatigueLimit, racing, recallHorse, restHorse, sendToPasture, setAutoEntry, setAutoTraining, setMenus, toggleGear, train, trainFatigueLimit, trainers, workouts } = app;
+  const { busy, dirtSessions, foldProps, game, menus, raceFatigueLimit, recallHorse, restHorse, sendToPasture, setAutoEntry, setAutoTraining, setMenus, toggleGear, train, trainFatigueLimit, trainers, workouts } = app;
   return (
       <main role="tabpanel" aria-label="育成">
         <section className="panel">
@@ -117,7 +117,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                           <select
                             aria-label={`${h.name}の調教メニュー`}
                             value={chosen.workout}
-                            disabled={racing}
+                            disabled={busy}
                             onChange={(e) => setMenus({ ...menus, [h.name]: e.target.value })}
                           >
                             {workouts.filter((w) => w.workout !== "jump" || h.jumper).map((w) => (
@@ -128,7 +128,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                             aria-label={`${h.name}を調教`}
                             title={`${gainText(chosen, dirtSessions)} — ${chosen.description}`}
                             disabled={
-                              racing ||
+                              busy ||
                               game.game_over ||
                               game.money < h.train_cost ||
                               h.resting === true ||
@@ -141,7 +141,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                           </button>
                           <button
                             aria-label={`${h.name}を休養させる`}
-                            disabled={racing || h.resting === true || !!h.away}
+                            disabled={busy || h.resting === true || !!h.away}
                             onClick={() => restHorse(h.name)}
                           >
                             休養
@@ -166,7 +166,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                               type="checkbox"
                               aria-label={`${h.name}をお任せ調教`}
                               checked={h.auto_training ?? false}
-                              disabled={racing}
+                              disabled={busy}
                               onChange={(e) => setAutoTraining(h.name, e.target.checked)}
                             />
                             お任せ
@@ -176,7 +176,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                               type="checkbox"
                               aria-label={`${h.name}を自動出走`}
                               checked={h.auto_entry ?? false}
-                              disabled={racing}
+                              disabled={busy}
                               onChange={(e) => setAutoEntry(h.name, e.target.checked)}
                             />
                             自動出走
@@ -186,7 +186,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                         type="checkbox"
                         aria-label={`${h.name}のメンコ`}
                         checked={h.gear?.menko ?? false}
-                        disabled={racing}
+                        disabled={busy}
                         onChange={() => toggleGear(h.name, h.gear, "menko")}
                       />
                       メンコ
@@ -196,7 +196,7 @@ export default function TrainTab({ app }: { app: AppView }) {
                         type="checkbox"
                         aria-label={`${h.name}のシャドーロール`}
                         checked={h.gear?.shadow_roll ?? false}
-                        disabled={racing}
+                        disabled={busy}
                         onChange={() => toggleGear(h.name, h.gear, "shadow_roll")}
                       />
                       シャドーロール

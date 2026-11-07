@@ -484,10 +484,9 @@ impl Game {
         // running takes it out of a horse; the free race, only a gallop, half as much
         let tiring = race_fatigue(spec.distance) / if race_name.is_some() { 1 } else { 2 };
         self.tire_runners(&spec, tiring);
+        // the free race is only a gallop: the week goes on, and so do the horses' conditions
         if race_name.is_some() {
             self.finish_week(Some((&spec, &results)));
-        } else {
-            self.roll_conditions();
         }
 
         let runners: Vec<String> = spec.entrants.iter().map(|e| e.name.clone()).collect();

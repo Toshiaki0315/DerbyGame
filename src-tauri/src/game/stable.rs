@@ -395,9 +395,12 @@ impl Game {
             return;
         }
         while self.weekly_upkeep() >= self.money && self.field.len() > 1 {
-            let cheapest = (0..self.field.len())
+            let Some(cheapest) = (0..self.field.len())
+                .filter(|&i| !self.abroad(i))
                 .min_by_key(|&i| self.sale_price(i))
-                .unwrap_or(0);
+            else {
+                break;
+            };
             let name = self.field[cheapest].name.clone();
             let price = self.sale_price(cheapest);
             if self.sell_horse(&name).is_err() {
@@ -412,6 +415,14 @@ impl Game {
                 .push("預託料が払えず、資金が尽きました。".to_string());
         }
         self.money = self.money.saturating_sub(bill);
+    }
+
+    /// Whether a horse is away racing abroad.
+    pub(super) fn abroad(&self, i: usize) -> bool {
+        self.field[i]
+            .away
+            .as_ref()
+            .is_some_and(|a| a.kind == AwayKind::Expedition)
     }
 
     /// What a horse would sell for: its ability and its wins, less as it ages.
@@ -438,6 +449,10 @@ impl Game {
         let i = self.slot(name)?;
         if self.field.len() == 1 {
             return Err(GameError::LastHorse);
+        }
+        // its expedition is paid for and under way
+        if self.abroad(i) {
+            return Err(GameError::Away);
         }
         self.earn(self.sale_price(i) as i64);
         self.remove_slot(i);

@@ -142,11 +142,11 @@ fn a_win_abroad_pays_and_is_remembered_as_a_goal() {
 }
 
 #[test]
-fn a_horse_sold_before_its_race_abroad_does_not_run() {
+fn a_horse_that_left_the_stable_before_its_race_abroad_does_not_run() {
     let (mut g, i, race) = ready_to_go();
     let name = g.field[i].name.clone();
     g.go_abroad(&name, race).unwrap();
-    g.sell_horse(&name).unwrap();
+    g.remove_slot(i);
     while g.week <= OVERSEAS[race].week {
         g.advance_week();
     }
@@ -160,4 +160,34 @@ fn a_trip_abroad_survives_a_save() {
     g.go_abroad(&name, race).unwrap();
     let r = Game::from_json(&g.to_json()).unwrap();
     assert_eq!(r.state(), g.state());
+}
+
+#[test]
+fn a_horse_away_racing_abroad_cannot_be_sold() {
+    let (mut g, i, race) = ready_to_go();
+    let name = g.field[i].name.clone();
+    g.go_abroad(&name, race).unwrap();
+    assert!(matches!(g.sell_horse(&name), Err(GameError::Away)));
+    assert!(g.field.iter().any(|h| h.name == name));
+}
+
+#[test]
+fn a_stable_short_of_its_bill_lets_another_horse_go_before_one_abroad() {
+    let (mut g, i, race) = ready_to_go();
+    let name = g.field[i].name.clone();
+    g.go_abroad(&name, race).unwrap();
+    // the horse abroad is the cheapest of the stable
+    for j in 0..g.field.len() {
+        let stat = if j == i { 30 } else { 90 };
+        g.field[j].speed = stat;
+        g.field[j].stamina = stat;
+        g.field[j].power = stat;
+        g.field[j].record.wins = 0;
+    }
+    let n = g.field.len();
+    g.money = g.weekly_upkeep();
+    g.advance_week();
+    assert_eq!(g.field.len(), n - 1);
+    assert!(g.field.iter().any(|h| h.name == name), "{:?}", g.news);
+    assert!(g.expeditions.iter().any(|e| e.horse == name));
 }

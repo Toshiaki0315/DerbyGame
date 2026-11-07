@@ -28,17 +28,13 @@ export function useStable(core: Core, races: Races) {
   }, [tab, game]);
 
   // put a メンコ or a シャドーロール on, or take it off (it stays until changed)
-  const toggleGear = async (name: string, current: Gear | undefined, part: keyof Gear) => {
-    setError("");
-    const next = { menko: current?.menko ?? false, shadow_roll: current?.shadow_roll ?? false, blinkers: current?.blinkers ?? false };
-    next[part] = !next[part];
-    try {
+  const toggleGear = (name: string, current: Gear | undefined, part: keyof Gear) =>
+    attempt(async () => {
+      const next = { menko: current?.menko ?? false, shadow_roll: current?.shadow_roll ?? false, blinkers: current?.blinkers ?? false };
+      next[part] = !next[part];
       load(await invoke<GameState>("set_gear", { horse: name, menko: next.menko, shadowRoll: next.shadow_roll, blinkers: next.blinkers }));
       setCardVersion((v) => v + 1);
-    } catch (e) {
-      setError(String(e));
-    }
-  };
+    });
 
   const train = (name: string, workout: string) =>
     attempt(async () => {

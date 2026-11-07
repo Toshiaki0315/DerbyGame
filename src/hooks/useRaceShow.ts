@@ -10,7 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 export function useRaceShow(core: Core, races: Races, betting: Betting) {
-  const { setGame, load, setNotice, attemptOnce } = core;
+  const { setGame, load, setNotice, setError, attempt } = core;
   const { card, chosenRace, setRaceSel } = races;
   const { slip, setSlip, slipTotal } = betting;
   const [outcome, setOutcome] = useState<(RoundOutcome & { stake: number; horse: string; kind: BetKind; ticketCount: number; mixed: boolean }) | null>(null);
@@ -41,11 +41,13 @@ export function useRaceShow(core: Core, races: Races, betting: Betting) {
   useEffect(() => {
     if (finished && outcome?.race_name) {
       // a calendar race moved the game on a week (and maybe a year): take the server's state
-      invoke<GameState>("get_game_state").then((s) => {
-        load(s);
-        setRaceSel(FREE_RACE);
-        if (s.news && s.news.length > 0) setNotice(s.news.join(" "));
-      });
+      invoke<GameState>("get_game_state")
+        .then((s) => {
+          load(s);
+          setRaceSel(FREE_RACE);
+          if (s.news && s.news.length > 0) setNotice(s.news.join(" "));
+        })
+        .catch((e) => setError(String(e)));
       return;
     }
     if (finished && outcome) {
@@ -85,7 +87,7 @@ export function useRaceShow(core: Core, races: Races, betting: Betting) {
   };
 
   const runRace = () =>
-    attemptOnce(async () => {
+    attempt(async () => {
       const seed = Math.floor(Math.random() * 2 ** 32);
       const race = chosenRace ? raceKey(chosenRace) : null;
       if (slip.length > 0) {

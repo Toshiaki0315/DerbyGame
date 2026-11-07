@@ -151,6 +151,16 @@ describe("App", () => {
     expect(call[1]).toMatchObject({ tickets: [{ horses: ["Fast"], amount: 100, kind: "win" }] });
   });
 
+  it("keeps a stake to whole money, so the ticket can be bought", async () => {
+    mockBackend();
+    render(<App />);
+    await ready();
+    fireEvent.change(screen.getByLabelText("賭け金"), { target: { value: "100.5" } });
+    expect((screen.getByLabelText("賭け金") as HTMLInputElement).value).toBe("100");
+    fireEvent.click(screen.getByText("買い目に追加"));
+    expect(screen.getByText(/単勝 .* 100$/)).toBeTruthy();
+  });
+
   it("shows a loss message", async () => {
     mockBackend({
       results: [{ rank: 1, name: "Slow", finish_time: 60 }],
@@ -679,6 +689,53 @@ describe("App", () => {
       expect(calls("next_week")).toBe(1);
     });
 
+    it("mates the pair once however often the mating button is pressed", async () => {
+      const reply = held();
+      mockBackend(undefined, undefined, undefined, { breed_horses: () => reply.promise });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "繁殖" }));
+      fireEvent.change(screen.getByLabelText("仔馬の名前"), { target: { value: "ニューホープ" } });
+      const mate = () => screen.getByText("配合 (500)") as HTMLButtonElement;
+      fireEvent.click(mate());
+      fireEvent.click(mate());
+      await waitFor(() => expect(mate().disabled).toBe(true));
+      expect(calls("breed_horses")).toBe(1);
+      await act(async () => reply.release({ ...state, money: 500 }));
+      await screen.findByText("所持金: 500");
+      expect(calls("breed_horses")).toBe(1);
+    });
+
+    it("trains once however often the training button is pressed, with the week held meanwhile", async () => {
+      const reply = held();
+      mockBackend(undefined, undefined, undefined, { train_horse: () => reply.promise });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("tab", { name: "育成" }));
+      const train = () => screen.getByLabelText("Fastを調教") as HTMLButtonElement;
+      fireEvent.click(train());
+      fireEvent.click(train());
+      await waitFor(() => expect(train().disabled).toBe(true));
+      expect(calls("train_horse")).toBe(1);
+      fireEvent.click(screen.getByRole("tab", { name: "レース" }));
+      expect((screen.getByRole("button", { name: "次の週へ" }) as HTMLButtonElement).disabled).toBe(true);
+      await act(async () => reply.release(state));
+      await waitFor(() => expect((screen.getByRole("button", { name: "次の週へ" }) as HTMLButtonElement).disabled).toBe(false));
+    });
+
+    it("keeps training and mating off while the weeks go by themselves", async () => {
+      const reply = held();
+      mockBackend(undefined, undefined, undefined, { next_week: () => reply.promise });
+      render(<App />);
+      await ready();
+      fireEvent.click(screen.getByRole("button", { name: "オートプレイ開始" }));
+      fireEvent.click(screen.getByRole("tab", { name: "育成" }));
+      expect((screen.getByLabelText("Fastを調教") as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(screen.getByRole("tab", { name: "繁殖" }));
+      fireEvent.change(screen.getByLabelText("仔馬の名前"), { target: { value: "ニューホープ" } });
+      expect((screen.getByText("配合 (500)") as HTMLButtonElement).disabled).toBe(true);
+    });
+
     it("lets the button be pressed again once the game has refused", async () => {
       const reply = held();
       mockBackend(undefined, undefined, undefined, { next_week: () => reply.promise });
@@ -1017,6 +1074,15 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("tab", { name: "厩舎" }));
       return screen.getByRole("region", { name: "海外遠征" });
     };
+
+    it("does not offer to sell a horse that is away racing abroad", async () => {
+      const trainers = [{ id: 0, name: "鬼塚", region: "美浦", training: "標準", distance: "万能", rotation: "標準", aim: "バランス", description: "" }];
+      const away = { kind: "expedition", label: "遠征", weeks: 5 };
+      const field = [{ ...state.field[0], trainer: 0, sale_price: 600, away }, { ...state.field[1], trainer: 0, sale_price: 300 }];
+      await open({ get_game_state: { ...abroad, trainers, stable_capacity: 10, field } });
+      expect((screen.getByRole("button", { name: "Fastを600で売却" }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole("button", { name: "Slowを300で売却" }) as HTMLButtonElement).disabled).toBe(false);
+    });
 
     it("lists the races abroad and sends a horse when asked", async () => {
       const go = vi.fn(() => abroad);
@@ -1989,6 +2055,24 @@ describe("App", () => {
     expect(screen.getByLabelText("ライバルB")).toBeTruthy();
     // and the race selection goes back to the free race for the new week
     expect((screen.getByLabelText("レース") as HTMLSelectElement).value).toBe("free");
+  });
+
+  it("says so when the game cannot be fetched again after a calendar race", async () => {
+    let stateCalls = 0;
+    calendarBackend(raceOutcome, {
+      get_game_state: () => {
+        if (++stateCalls === 1) return state;
+        throw new Error("ゲームの状態を読めません");
+      },
+    });
+    render(<App />);
+    await ready();
+    await waitFor(() => expect((screen.getByLabelText("レース") as HTMLSelectElement).options.length).toBe(2));
+    fireEvent.change(screen.getByLabelText("レース"), { target: { value: "sat:kyoto:11" } });
+    await screen.findByText("ライバルA", { selector: "td.name" });
+    fireEvent.click(screen.getByText("レース開始"));
+    fireEvent.click(await screen.findByText("スキップ"));
+    expect(await screen.findByText(/ゲームの状態を読めません/)).toBeTruthy();
   });
 
   it("sends no race for the free race", async () => {

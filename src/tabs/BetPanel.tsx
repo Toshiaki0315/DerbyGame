@@ -85,7 +85,7 @@ export default function BetPanel({ app }: { app: AppView }) {
             min={1}
             max={game.money}
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            onChange={(e) => setAmount(Math.trunc(Number(e.target.value)))}
           />
         </label>
         <button

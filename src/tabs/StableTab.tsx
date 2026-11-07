@@ -5,7 +5,7 @@ import { AppView } from "../view";
 import { Fold, HorseIcon, SideOptions } from "../widgets";
 
 export default function StableTab({ app }: { app: AppView }) {
-  const { abroadHorse, acceptAdvice, advice, busy, foldProps, game, geldHorse, goAbroad, goOverToJumps, takeJumpExam, inStable, moveToStable, racing, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
+  const { abroadHorse, acceptAdvice, advice, busy, foldProps, game, geldHorse, goAbroad, goOverToJumps, takeJumpExam, inStable, moveToStable, sellHorse, setAbroadHorse, setJockey, setOrder, stableCapacity, trainers } = app;
   // a race that can take one of my horses opens the part by itself, until it is closed for that race
   const taking = (game.overseas ?? []).filter((r) => r.open && r.candidates.length > 0);
   const away = game.expeditions ?? [];
@@ -123,7 +123,7 @@ export default function StableTab({ app }: { app: AppView }) {
                             <button
                               className="sell"
                               aria-label={`${h.name}を${h.sale_price}で売却`}
-                              disabled={busy || game.game_over || game.field.length <= 1}
+                              disabled={busy || game.game_over || game.field.length <= 1 || h.away?.kind === "expedition"}
                               onClick={() => sellHorse(h.name, h.sale_price!)}
                             >
                               {`売却 ${h.sale_price}`}
@@ -163,7 +163,7 @@ export default function StableTab({ app }: { app: AppView }) {
                           <select
                             aria-label={`${h.name}の騎手`}
                             value={h.jockey ?? ""}
-                            disabled={racing}
+                            disabled={busy}
                             onChange={(e) => setJockey(h.name, e.target.value)}
                           >
                             <option value="">調教師におまかせ</option>
@@ -180,7 +180,7 @@ export default function StableTab({ app }: { app: AppView }) {
                             aria-label={`${h.name}の作戦`}
                             title="馬本来の脚質と違う作戦を指示すると、気性が荒くなって掛かりやすくなります。"
                             value={h.order ?? ""}
-                            disabled={racing}
+                            disabled={busy}
                             onChange={(e) => setOrder(h.name, e.target.value)}
                           >
                             <option value="">騎手におまかせ</option>
@@ -193,7 +193,7 @@ export default function StableTab({ app }: { app: AppView }) {
                           <select
                             aria-label={`${h.name}の厩舎`}
                             value={t.id}
-                            disabled={racing}
+                            disabled={busy}
                             onChange={(e) => {
                               const to = trainers.find((x) => x.id === Number(e.target.value));
                               if (to) moveToStable(h.name, to);

@@ -7,7 +7,7 @@ import { AppView } from "../view";
 import { Fold, FoldPart, HorseIcon } from "../widgets";
 
 export default function BreedingTab({ app }: { app: AppView }) {
-  const { bidFor, bidResult, bids, breed, buyStud, canBreed, damSel, females, foalName, foldProps, game, inFoal, lots, market, matingCost, outlook, outlookError, outsideSires, parentLabel, pregnancies, racing, releaseStud, retireSel, roomInStable, setBids, setDam, setFoalName, setRetire, setSire, sireSel, sires, studs, studsFull, upgradeFarm } = app;
+  const { bidFor, bidResult, bids, breed, buyStud, canBreed, damSel, females, foalName, foldProps, game, inFoal, lots, market, matingCost, outlook, outlookError, outsideSires, parentLabel, pregnancies, busy, releaseStud, retireSel, roomInStable, setBids, setDam, setFoalName, setRetire, setSire, sireSel, sires, studs, studsFull, upgradeFarm } = app;
   return (
       <main role="tabpanel" aria-label="繁殖">
         <section className="panel breeding">
@@ -126,7 +126,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
                   <li key={facility}>
                     <strong>{`${label} Lv${level}/${game.farm!.max_level}`}</strong>
                     {cost != null && (
-                      <button disabled={racing || game.game_over || cost >= game.money} onClick={() => upgradeFarm(facility)}>
+                      <button disabled={busy || game.game_over || cost >= game.money} onClick={() => upgradeFarm(facility)}>
                         {`${label}を拡張 (${cost})`}
                       </button>
                     )}
@@ -160,7 +160,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
                 const bid = bids[l.lot] ?? { max: "", name: "" };
                 const maxBid = Number(bid.max);
                 const canBid =
-                  !racing && maxBid >= l.start_price && maxBid < game.money && isValidHorseName(bid.name);
+                  !busy && maxBid >= l.start_price && maxBid < game.money && isValidHorseName(bid.name);
                 const edit = (change: Partial<typeof bid>) => setBids({ ...bids, [l.lot]: { ...bid, ...change } });
                 return (
                   <li key={l.lot}>
@@ -246,7 +246,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
                             )}
                             <button
                               aria-label={`${s.name}を繁殖から外す`}
-                              disabled={racing}
+                              disabled={busy}
                               onClick={() => releaseStud(s.name)}
                             >
                               繁殖から外す
@@ -288,7 +288,7 @@ export default function BreedingTab({ app }: { app: AppView }) {
                             </span>
                             <button
                               aria-label={`${o.name}を購入`}
-                              disabled={racing || game.game_over || studsFull || game.money < o.price}
+                              disabled={busy || game.game_over || studsFull || game.money < o.price}
                               title={studsFull ? "繁殖馬がいっぱいです" : game.money < o.price ? "所持金が足りません" : undefined}
                               onClick={() => buyStud(o)}
                             >

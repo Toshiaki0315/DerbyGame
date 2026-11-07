@@ -270,3 +270,16 @@ fn nothing_saved_means_nothing_to_load() {
     let err = call(&window, "load_game", json!({})).unwrap_err();
     assert_eq!(err, json!("セーブデータがありません"));
 }
+
+#[test]
+fn the_game_can_still_be_reached_after_a_command_went_wrong_holding_it() {
+    let store = std::sync::Arc::new(GameStore(std::sync::Mutex::new(Game::new())));
+    let held = store.clone();
+    let _ = std::thread::spawn(move || {
+        let _g = held.game();
+        panic!("a command went wrong");
+    })
+    .join();
+    assert!(store.0.is_poisoned());
+    assert_eq!(store.game().week, 1);
+}

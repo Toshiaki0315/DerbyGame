@@ -265,8 +265,19 @@ impl Game {
             std::fs::create_dir_all(dir)
                 .map_err(|e| format!("セーブ先フォルダを作成できません: {e}"))?;
         }
-        std::fs::write(path, self.to_json())
-            .map_err(|e| format!("セーブファイルを書き込めません: {e}"))
+        // written to a scratch file first and then put in place, so a save that cannot be
+        // finished leaves the last one as it was
+        let mut scratch = path.as_os_str().to_owned();
+        scratch.push(".tmp");
+        let scratch = std::path::PathBuf::from(scratch);
+        let written = std::fs::write(&scratch, self.to_json())
+            .and_then(|()| std::fs::rename(&scratch, path));
+        written.map_err(|e| {
+            if scratch.is_file() {
+                std::fs::remove_file(&scratch).ok();
+            }
+            format!("セーブファイルを書き込めません: {e}")
+        })
     }
 
     pub fn load_from(path: &std::path::Path) -> Result<Self, String> {

@@ -89,22 +89,17 @@ export function useBreeding(core: Core, show: RaceShow) {
       );
     }, true);
 
-  const bidFor = async (lot: number) => {
-    setError("");
-    setNotice("");
-    const { max, name } = bids[lot];
-    try {
+  const bidFor = (lot: number) =>
+    attempt(async () => {
+      const { max, name } = bids[lot];
       const r = await invoke<{ won: boolean; price: number; state: GameState }>("bid_at_auction", {
         lot,
-        maxBid: Number(max),
+        maxBid: Math.trunc(Number(max)),
         name,
       });
       load(r.state);
       setBidResult(r.won ? `「${name}」を${r.price}で落札しました。` : `競り負けました(落札額 ${r.price})。`);
-    } catch (e) {
-      setError(String(e));
-    }
-  };
+    }, true);
 
   const retireHorse = async (name: string) => {
     const gelding = game?.field.find((h) => h.name === name)?.gelded;

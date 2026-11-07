@@ -6,7 +6,7 @@ import { AppModel } from "./useGame";
 
 /** What the screens work out from the state, once the game has loaded. */
 export function viewOf(app: AppModel, game: GameState) {
-  const { quote, kind, sire, dam, retire, foalName, outcome, frame, card, racing, outsideSires, maleNames, selection, isSingle } = app;
+  const { quote, kind, sire, dam, retire, foalName, outcome, frame, card, racing, busy, outsideSires, maleNames, selection, isSingle } = app;
 
   // who is running: my entered horses and the rivals
   const runners: Runner[] = card?.entrants ?? [];
@@ -47,7 +47,7 @@ export function viewOf(app: AppModel, game: GameState) {
   const studsFull = game.max_studs !== undefined && studs.length >= game.max_studs;
   const parentLabel = (name: string) => (studNames.has(name) ? `${name}(繁殖)` : name);
   const canBreed =
-    !racing &&
+    !busy &&
     !game.game_over &&
     game.breeding_open !== false &&
     game.money >= matingCost &&

@@ -136,6 +136,14 @@ pub struct Game {
 
 pub struct GameStore(pub Mutex<Game>);
 
+impl GameStore {
+    /// The game, for one command. A command that went wrong while holding it leaves the
+    /// lock poisoned; the game is still taken, so one mistake does not stop every command after it.
+    pub fn game(&self) -> std::sync::MutexGuard<'_, Game> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 impl Game {
     #[cfg(test)]
     pub fn new() -> Self {
